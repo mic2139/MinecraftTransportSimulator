@@ -587,6 +587,12 @@ public abstract class AEntityE_Interactable<JSONDefinition extends AJSONInteract
         if (definition.collisionGroups != null) {
             for (int i = 0; i < definition.collisionGroups.size(); ++i) {
                 JSONCollisionGroup groupDef = definition.collisionGroups.get(i);
+                if (definitionCollisionBoxes.size() == i) {
+                    //This can only happen if we hotloaded the definition due to devMode.
+                    //Flag us as needing a reset, and then bail to prevent further collision checks.
+                    animationsInitialized = false;
+                    return;
+                }
                 List<BoundingBox> collisionBoxes = definitionCollisionBoxes.get(i);
                 if (collisionBoxes == null) {
                     //This can only happen if we hotloaded the definition due to devMode.
