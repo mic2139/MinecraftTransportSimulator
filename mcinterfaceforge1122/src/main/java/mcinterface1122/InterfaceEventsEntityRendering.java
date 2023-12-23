@@ -67,6 +67,8 @@ public class InterfaceEventsEntityRendering {
     private static final TransformationMatrix cameraAdjustments = new TransformationMatrix();
     private static int lastScreenWidth;
     private static int lastScreenHeight;
+    private static float lastRiderYawHead;
+    private static float lastRiderPrevYawHead;
     private static float lastRiderPitch;
     private static float lastRiderPrevPitch;
 
@@ -213,10 +215,12 @@ public class InterfaceEventsEntityRendering {
 
             //Set the entity's head yaw to the delta between their yaw and their angled yaw.
             //This needs to be relative as we're going to render relative to the body here, not the world.
-            entity.rotationYawHead = (float) -ridingEntity.riderRelativeOrientation.convertToAngles().y;
-            entity.prevRotationYawHead = entity.rotationYawHead;
+            lastRiderYawHead = entity.rotationYawHead;
+            lastRiderPrevYawHead = entity.prevRotationYawHead;
             lastRiderPitch = entity.rotationPitch;
             lastRiderPrevPitch = entity.prevRotationPitch;
+            entity.rotationYawHead = (float) -ridingEntity.riderRelativeOrientation.convertToAngles().y;
+            entity.prevRotationYawHead = entity.rotationYawHead;
             entity.rotationPitch = (float) ridingEntity.riderRelativeOrientation.angles.x;
             entity.prevRotationPitch = entity.rotationPitch;
 
@@ -234,7 +238,6 @@ public class InterfaceEventsEntityRendering {
                 //Apply translations and rotations to move entity to correct position relative to the camera entity.
                 riderTotalTransformation.resetTransforms();
                 riderTotalTransformation.setTranslation(interpolatedPosition);
-                riderTotalTransformation.applyTranslation(0, 0, 0);
                 riderTotalTransformation.applyRotation(riderBodyOrientation);
                 riderTotalTransformation.applyScaling(entityScale);
                 riderTotalTransformation.applyTranslation(0, entityWrapper.getSeatOffset(), 0);
@@ -352,8 +355,11 @@ public class InterfaceEventsEntityRendering {
     public static void on(@SuppressWarnings("rawtypes") RenderLivingEvent.Post event) {
         if (needToPopMatrix) {
             GL11.glPopMatrix();
-            event.getEntity().rotationPitch = lastRiderPitch;
-            event.getEntity().prevRotationPitch = lastRiderPrevPitch;
+            EntityLivingBase entity = event.getEntity();
+            entity.rotationYawHead = lastRiderYawHead;
+            entity.prevRotationYawHead = lastRiderPrevYawHead;
+            entity.rotationPitch = lastRiderPitch;
+            entity.prevRotationPitch = lastRiderPrevPitch;
         }
         if (heldStackHolder != null) {
             EntityPlayer player = (EntityPlayer) event.getEntity();

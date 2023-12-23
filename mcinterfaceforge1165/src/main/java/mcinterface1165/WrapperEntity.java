@@ -163,7 +163,8 @@ public class WrapperEntity implements IWrapperEntity {
 
     @Override
     public void setPosition(Point3D position, boolean onGround) {
-        entity.setPos(position.x, position.y, position.z);
+        //Need to offset by the seated value to prevent entity from clipping into the ground and doing bad collision.
+        entity.setPos(position.x, position.y - getSeatOffset(), position.z);
 
         //Set fallDistance to 0 to prevent damage.
         entity.fallDistance = 0;
