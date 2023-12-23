@@ -377,15 +377,15 @@ public abstract class EntityManager {
      * Only called on servers, as clients don't save anything.
      */
     public void saveEntities(AWrapperWorld world) {
-        IWrapperNBT entityData = InterfaceManager.coreInterface.getNewNBTWrapper();
         int entityCount = 0;
         for (AEntityA_Base entity : trackedEntityMap.values()) {
             if (entity.shouldSave()) {
-                entityData.setData("entity" + entityCount++, entity.save(InterfaceManager.coreInterface.getNewNBTWrapper()));
+                world.setData("entity" + entityCount++, entity.save(InterfaceManager.coreInterface.getNewNBTWrapper()));
             }
         }
-        entityData.setInteger("entityCount", entityCount);
-        world.setData("entities", entityData);
+        IWrapperNBT entityCountData = InterfaceManager.coreInterface.getNewNBTWrapper();
+        entityCountData.setInteger("entityCount", entityCount);
+        world.setData("entityCount", entityCountData);
     }
 
     /**
@@ -393,11 +393,14 @@ public abstract class EntityManager {
      * Only called on servers, as clients don't save anything.
      */
     public void loadEntities(AWrapperWorld world) {
-        IWrapperNBT entityData = world.getData("entities");
-        if (entityData != null) {
-            int entityCount = entityData.getInteger("entityCount");
+        IWrapperNBT entityCountData = world.getData("entityCount");
+        if (entityCountData != null) {
+            int entityCount = entityCountData.getInteger("entityCount");
             for (int i = 0; i < entityCount; ++i) {
-                addEntityByData(world, entityData.getData("entity" + i));
+                IWrapperNBT entityData = world.getData("entity" + i);
+                if (entityData != null) {
+                    addEntityByData(world, entityData);
+                }
             }
         }
     }
