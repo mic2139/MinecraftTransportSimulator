@@ -116,10 +116,12 @@ public final class PartSeat extends APart {
     }
 
     @Override
-    public void update() {
-        super.update();
-        if (!canControlGuns && (activeGunItem != null || placementDefinition.canDisableGun)) {
-            canControlGuns = true;
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
+        if (updateAction == EntityUpdateAction.ALL) {
+            if (!canControlGuns && (activeGunItem != null || placementDefinition.canDisableGun)) {
+                canControlGuns = true;
+            }
         }
     }
 

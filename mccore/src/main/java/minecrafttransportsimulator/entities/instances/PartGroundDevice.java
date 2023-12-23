@@ -65,6 +65,7 @@ public class PartGroundDevice extends APart {
         this.prevLocalOffset = localOffset.copy();
         this.zeroReferencePosition = position.copy();
         this.wheelbasePoint = placementDefinition.pos.copy();
+        this.currentHeight = (float) ((isFlat ? definition.ground.flatHeight : definition.ground.height) * scale.y);
         AEntityF_Multipart<?> parent = entityOn;
         while(parent instanceof APart) {
             APart parentPart = (APart) parent;
@@ -105,7 +106,7 @@ public class PartGroundDevice extends APart {
     }
 
     @Override
-    public void update() {
+    public void update(EntityUpdateAction updateAction) {
         if (vehicleOn != null && !isSpare) {
             //Change ground device collective if we changed active state or offset.
             if (prevActive != isActive) {
@@ -118,86 +119,88 @@ public class PartGroundDevice extends APart {
                 prevLocalOffset.set(localOffset);
             }
 
-            //Set reference position for animation vars if we call them later.
-            zeroReferencePosition.set(placementDefinition.pos).rotate(entityOn.orientation).add(entityOn.position);
+            if (updateAction == EntityUpdateAction.ALL) {
+                //Set reference position for animation vars if we call them later.
+                zeroReferencePosition.set(placementDefinition.pos).rotate(entityOn.orientation).add(entityOn.position);
 
-            //If we are on the ground, adjust rotation.
-            if (vehicleOn.groundDeviceCollective.groundedGroundDevices.contains(this)) {
-                animateAsOnGround = true;
+                //If we are on the ground, adjust rotation.
+                if (vehicleOn.groundDeviceCollective.groundedGroundDevices.contains(this)) {
+                    animateAsOnGround = true;
 
-                //If we aren't skipping angular calcs, change our velocity accordingly.
-                if (!skipAngularCalcs) {
-                    prevAngularVelocity = angularVelocity;
-                    angularVelocity = getDesiredAngularVelocity();
-                }
+                    //If we aren't skipping angular calcs, change our velocity accordingly.
+                    if (!skipAngularCalcs) {
+                        prevAngularVelocity = angularVelocity;
+                        angularVelocity = getDesiredAngularVelocity();
+                    }
 
-                //Set contact for wheel skidding effects.
-                if (definition.ground.isWheel) {
-                    contactThisTick = false;
-                    if (Math.abs(prevAngularVelocity) / (vehicleOn.groundVelocity / (getHeight() * Math.PI)) < 0.25 && vehicleOn.velocity > 0.3) {
-                        //Sudden angular velocity increase.  Mark for skidding effects if the block below us is hard.
-                        Point3D blockPositionBelow = position.copy().add(0, -1, 0);
-                        if (!world.isAir(blockPositionBelow) && world.getBlockHardness(blockPositionBelow) >= 1.25) {
-                            contactThisTick = true;
+                    //Set contact for wheel skidding effects.
+                    if (definition.ground.isWheel) {
+                        contactThisTick = false;
+                        if (Math.abs(prevAngularVelocity) / (vehicleOn.groundVelocity / (getHeight() * Math.PI)) < 0.25 && vehicleOn.velocity > 0.3) {
+                            //Sudden angular velocity increase.  Mark for skidding effects if the block below us is hard.
+                            Point3D blockPositionBelow = position.copy().add(0, -1, 0);
+                            if (!world.isAir(blockPositionBelow) && world.getBlockHardness(blockPositionBelow) >= 1.25) {
+                                contactThisTick = true;
+                            }
+                        }
+
+                        //If we have a slipping wheel, count down and possibly pop it.
+                        if (!vehicleOn.world.isClient() && !isFlat) {
+                            if (!skipAngularCalcs) {
+                                if (ticksCalcsSkipped > 0) {
+                                    --ticksCalcsSkipped;
+                                }
+                            } else {
+                                ++ticksCalcsSkipped;
+                                if (Math.random() * 50000 < ticksCalcsSkipped) {
+                                    setFlatState(true);
+                                }
+                            }
                         }
                     }
 
-                    //If we have a slipping wheel, count down and possibly pop it.
-                    if (!vehicleOn.world.isClient() && !isFlat) {
-                        if (!skipAngularCalcs) {
-                            if (ticksCalcsSkipped > 0) {
-                                --ticksCalcsSkipped;
-                            }
+                    //Check for colliding entities and damage them.
+                    if (!vehicleOn.world.isClient() && vehicleOn.velocity >= ConfigSystem.settings.damage.wheelDamageMinimumVelocity.value) {
+                        boundingBox.widthRadius += 0.25;
+                        boundingBox.depthRadius += 0.25;
+                        final double wheelDamageAmount;
+                        if (!ConfigSystem.settings.damage.wheelDamageIgnoreVelocity.value) {
+                            wheelDamageAmount = ConfigSystem.settings.damage.wheelDamageFactor.value * vehicleOn.velocity * vehicleOn.currentMass / 1000F;
                         } else {
-                            ++ticksCalcsSkipped;
-                            if (Math.random() * 50000 < ticksCalcsSkipped) {
-                                setFlatState(true);
-                            }
+                            wheelDamageAmount = ConfigSystem.settings.damage.wheelDamageFactor.value * vehicleOn.currentMass / 1000F;
                         }
-                    }
-                }
-
-                //Check for colliding entities and damage them.
-                if (!vehicleOn.world.isClient() && vehicleOn.velocity >= ConfigSystem.settings.damage.wheelDamageMinimumVelocity.value) {
-                    boundingBox.widthRadius += 0.25;
-                    boundingBox.depthRadius += 0.25;
-                    final double wheelDamageAmount;
-                    if (!ConfigSystem.settings.damage.wheelDamageIgnoreVelocity.value) {
-                        wheelDamageAmount = ConfigSystem.settings.damage.wheelDamageFactor.value * vehicleOn.velocity * vehicleOn.currentMass / 1000F;
-                    } else {
-                        wheelDamageAmount = ConfigSystem.settings.damage.wheelDamageFactor.value * vehicleOn.currentMass / 1000F;
-                    }
-                    IWrapperEntity controller = vehicleOn.getController();
-                    LanguageEntry language = controller != null ? JSONConfigLanguage.DEATH_WHEEL_PLAYER : JSONConfigLanguage.DEATH_WHEEL_NULL;
-                    Damage wheelDamage = new Damage(wheelDamageAmount, boundingBox, this, controller, language);
-                    vehicleOn.world.attackEntities(wheelDamage, null, false);
-                    boundingBox.widthRadius -= 0.25;
-                    boundingBox.depthRadius -= 0.25;
-                }
-            } else {
-                if (!drivenLastTick) {
-                    if (vehicleOn.brake > 0 || vehicleOn.parkingBrakeOn) {
-                        angularVelocity = 0;
-                    } else if (angularVelocity > 0) {
-                        angularVelocity = (float) Math.max(angularVelocity - 0.05, 0);
+                        IWrapperEntity controller = vehicleOn.getController();
+                        LanguageEntry language = controller != null ? JSONConfigLanguage.DEATH_WHEEL_PLAYER : JSONConfigLanguage.DEATH_WHEEL_NULL;
+                        Damage wheelDamage = new Damage(wheelDamageAmount, boundingBox, this, controller, language);
+                        vehicleOn.world.attackEntities(wheelDamage, null, false);
+                        boundingBox.widthRadius -= 0.25;
+                        boundingBox.depthRadius -= 0.25;
                     }
                 } else {
-                    drivenLastTick = false;
+                    if (!drivenLastTick) {
+                        if (vehicleOn.brake > 0 || vehicleOn.parkingBrakeOn) {
+                            angularVelocity = 0;
+                        } else if (angularVelocity > 0) {
+                            angularVelocity = (float) Math.max(angularVelocity - 0.05, 0);
+                        }
+                    } else {
+                        drivenLastTick = false;
+                    }
+                    if (animateAsOnGround && !vehicleOn.groundDeviceCollective.isActuallyOnGround(this)) {
+                        animateAsOnGround = false;
+                    }
                 }
-                if (animateAsOnGround && !vehicleOn.groundDeviceCollective.isActuallyOnGround(this)) {
-                    animateAsOnGround = false;
+                prevAngularPosition = angularPosition;
+                //Invert rotation for all ground devices except treads.
+                if (isMirrored && !definition.ground.isTread) {
+                    angularPosition -= angularVelocity;
+                } else {
+                    angularPosition += angularVelocity;
                 }
-            }
-            prevAngularPosition = angularPosition;
-            //Invert rotation for all ground devices except treads.
-            if (isMirrored && !definition.ground.isTread) {
-                angularPosition -= angularVelocity;
-            } else {
-                angularPosition += angularVelocity;
             }
         }
         //Now that we have our wheel position, call super.
-        super.update();
+        super.update(updateAction);
     }
 
     @Override

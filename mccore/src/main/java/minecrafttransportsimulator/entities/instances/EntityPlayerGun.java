@@ -90,8 +90,8 @@ public class EntityPlayerGun extends AEntityF_Multipart<JSONDummyPartProvider> {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         //Make sure player is still valid and haven't left the server or the world we are in.
         if (player != null && player.isValid() && world == player.getWorld()) {
             //Set our position to the player's position.  We may update this later if we have a gun.
@@ -222,8 +222,8 @@ public class EntityPlayerGun extends AEntityF_Multipart<JSONDummyPartProvider> {
     }
 
     @Override
-    public boolean canUpdate() {
-        return world.isChunkLoaded(position);
+    public EntityUpdateAction getUpdateAction() {
+        return world.isChunkLoaded(position) ? EntityUpdateAction.ALL : EntityUpdateAction.NONE;
     }
 
     @Override

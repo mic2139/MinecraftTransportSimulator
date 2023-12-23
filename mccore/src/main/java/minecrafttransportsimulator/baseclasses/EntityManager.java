@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import minecrafttransportsimulator.entities.components.AEntityA_Base;
+import minecrafttransportsimulator.entities.components.AEntityA_Base.EntityUpdateAction;
 import minecrafttransportsimulator.entities.components.AEntityA_Base.EntityUpdateType;
 import minecrafttransportsimulator.entities.components.AEntityC_Renderable;
 import minecrafttransportsimulator.entities.components.AEntityD_Definable;
@@ -73,11 +74,12 @@ public abstract class EntityManager {
 
         //Update entities for either first or last cycle.
         for (AEntityA_Base entity : mainUpdate ? allMainTickableEntities : allLastTickableEntities) {
-            if (entity.canUpdate()) {
+            EntityUpdateAction updateAction = entity.getUpdateAction();
+            if (updateAction != EntityUpdateAction.NONE) {
                 world.beginProfiling("MTSEntity_" + entity.uniqueUUID, true);
-                entity.update();
+                entity.update(updateAction);
                 if (entity instanceof AEntityD_Definable) {
-                    ((AEntityD_Definable<?>) entity).doPostUpdateLogic();
+                    ((AEntityD_Definable<?>) entity).doPostUpdateLogic(updateAction);
                 }
                 world.endProfiling();
             }
@@ -167,7 +169,6 @@ public abstract class EntityManager {
             allLastTickableEntities.add(entity);
         }
         if (!entity.world.isClient() && entity.shouldSendDataToClients()) {
-            System.out.println("ADDING ENT TO CLIENT " + entity);
             InterfaceManager.packetInterface.sendToAllClients(new PacketWorldEntityData(entity));
         }
         if (entity instanceof AEntityC_Renderable) {
@@ -200,14 +201,12 @@ public abstract class EntityManager {
      */
     public void addEntityByData(AWrapperWorld world, IWrapperNBT data) {
         AItemPack<?> packItem = PackParser.getItem(data.getString("packID"), data.getString("systemName"), data.getString("subName"));
-        System.out.println("GOT PACKET TO ADD " + packItem);
         if (packItem instanceof AItemSubTyped) {
             AEntityD_Definable<?> entity = ((AItemSubTyped<?>) packItem).createEntityFromData(world, data);
             if (entity != null) {
                 if (entity instanceof AEntityF_Multipart) {
                     ((AEntityF_Multipart<?>) entity).addPartsPostConstruction(null, data);
                 }
-                System.out.println("Adding " + entity);
                 addEntity(entity);
             }
         } else if (packItem == null) {
@@ -382,11 +381,9 @@ public abstract class EntityManager {
         int entityCount = 0;
         for (AEntityA_Base entity : trackedEntityMap.values()) {
             if (entity.shouldSave()) {
-                System.out.println("Trying to save " + "entity" + entityCount + " " + entity);
                 entityData.setData("entity" + entityCount++, entity.save(InterfaceManager.coreInterface.getNewNBTWrapper()));
             }
         }
-        System.out.println("Found X ents to save " + entityCount);
         entityData.setInteger("entityCount", entityCount);
         world.setData("entities", entityData);
     }
@@ -399,9 +396,7 @@ public abstract class EntityManager {
         IWrapperNBT entityData = world.getData("entities");
         if (entityData != null) {
             int entityCount = entityData.getInteger("entityCount");
-            System.out.println("Found X ents to load " + entityCount);
             for (int i = 0; i < entityCount; ++i) {
-                System.out.println("Trying to load " + "entity" + i);
                 addEntityByData(world, entityData.getData("entity" + i));
             }
         }

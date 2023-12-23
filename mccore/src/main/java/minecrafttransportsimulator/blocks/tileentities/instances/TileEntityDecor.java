@@ -47,13 +47,13 @@ public class TileEntityDecor extends ATileEntityBase<JSONDecor> {
     }
 
     @Override
-    public void update() {
+    public void update(EntityUpdateAction updateAction) {
         //Need to do this before updating as these require knowledge of prior states.
         //If we call super, then it will overwrite the prior state.
         //We update both our variables and our part variables here.
         updateVariableModifiers();
 
-        super.update();
+        super.update(updateAction);
         //Reset clicked state.
         setVariable(CLICKED_VARIABLE, 0);
     }

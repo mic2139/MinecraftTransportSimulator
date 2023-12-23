@@ -45,8 +45,8 @@ public abstract class ATileEntityFuelPump extends TileEntityDecor {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         //Update creative status.
         isCreative = true;
         for (int i = 0; i < fuelItems.getSize(); ++i) {

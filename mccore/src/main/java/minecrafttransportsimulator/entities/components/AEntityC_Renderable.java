@@ -48,10 +48,10 @@ public abstract class AEntityC_Renderable extends AEntityB_Existing {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         prevScale.set(scale);
-        if (world.isClient()) {
+        if (updateAction == EntityUpdateAction.ALL && world.isClient()) {
             worldLightValue = getWorldLightValue();
         }
     }

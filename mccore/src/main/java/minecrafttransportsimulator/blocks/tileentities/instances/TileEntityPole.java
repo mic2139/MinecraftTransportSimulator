@@ -56,12 +56,12 @@ public class TileEntityPole extends ATileEntityBase<JSONPoleComponent> {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         //Forward update call to components and get light level.
         maxTotalLightLevel = 0;
         for (ATileEntityPole_Component component : components.values()) {
-            component.update();
+            component.update(updateAction);
             maxTotalLightLevel = Math.max(maxTotalLightLevel, component.getLightProvided());
         }
 

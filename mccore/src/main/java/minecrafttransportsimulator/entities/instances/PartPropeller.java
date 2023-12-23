@@ -79,110 +79,112 @@ public class PartPropeller extends APart {
     }
 
     @Override
-    public void update() {
-        super.update();
-        //Get the running engine with the fastest RPM, and have us follow it.
-        //This needs to account for the gearbox ratio as well.
-        currentRPM = 0;
-        if (isActive) {
-            boolean increasePitch = false;
-            boolean decreasePitch = false;
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
 
-            //If we have an engine connected, adjust speed and pitch to it.
-            if (!connectedEngines.isEmpty()) {
-                //Get engine with highest running RPM, or highest total RPM if none are running.
-                double highestPossibleRPM = 0;
-                double highestRunningRPM = 0;
-                PartEngine currentConnectedEngine = null;
-                for (PartEngine connectedEngine : connectedEngines) {
-                    if (connectedEngine.propellerGearboxRatio != 0) {
-                        double engineDrivenRPM = connectedEngine.rpm / connectedEngine.propellerGearboxRatio;
-                        if (currentConnectedEngine == null || engineDrivenRPM > highestPossibleRPM) {
-                            highestPossibleRPM = engineDrivenRPM;
-                            currentConnectedEngine = connectedEngine;
+        if (updateAction == EntityUpdateAction.ALL) {
+            //Get the running engine with the fastest RPM, and have us follow it.
+            //This needs to account for the gearbox ratio as well.
+            currentRPM = 0;
+            if (isActive) {
+                boolean increasePitch = false;
+                boolean decreasePitch = false;
+
+                //If we have an engine connected, adjust speed and pitch to it.
+                if (!connectedEngines.isEmpty()) {
+                    //Get engine with highest running RPM, or highest total RPM if none are running.
+                    double highestPossibleRPM = 0;
+                    double highestRunningRPM = 0;
+                    PartEngine currentConnectedEngine = null;
+                    for (PartEngine connectedEngine : connectedEngines) {
+                        if (connectedEngine.propellerGearboxRatio != 0) {
+                            double engineDrivenRPM = connectedEngine.rpm / connectedEngine.propellerGearboxRatio;
+                            if (currentConnectedEngine == null || engineDrivenRPM > highestPossibleRPM) {
+                                highestPossibleRPM = engineDrivenRPM;
+                                currentConnectedEngine = connectedEngine;
+                            }
+                            if (connectedEngine.running && engineDrivenRPM > highestRunningRPM) {
+                                highestRunningRPM = engineDrivenRPM;
+                                currentConnectedEngine = connectedEngine;
+                            }
                         }
-                        if (connectedEngine.running && engineDrivenRPM > highestRunningRPM) {
-                            highestRunningRPM = engineDrivenRPM;
-                            currentConnectedEngine = connectedEngine;
+                    }
+                    currentRPM = highestRunningRPM > 0 ? highestRunningRPM : highestPossibleRPM;
+
+                    //Ensure we don't over-speed the engine if we are a dynamic propeller by requesting a pitch adjustment later.
+                    if (currentConnectedEngine != null && definition.propeller.isDynamicPitch) {
+                        if (currentPitch > MIN_DYNAMIC_PITCH) {
+                            decreasePitch = currentConnectedEngine.rpm < currentConnectedEngine.definition.engine.maxSafeRPM * 0.60;
+                        }
+                        if (currentPitch < definition.propeller.pitch) {
+                            increasePitch = currentConnectedEngine.rpm > currentConnectedEngine.definition.engine.maxSafeRPM * 0.85;
                         }
                     }
                 }
-                currentRPM = highestRunningRPM > 0 ? highestRunningRPM : highestPossibleRPM;
 
-                //Ensure we don't over-speed the engine if we are a dynamic propeller by requesting a pitch adjustment later.
-                if (currentConnectedEngine != null && definition.propeller.isDynamicPitch) {
-                    if (currentPitch > MIN_DYNAMIC_PITCH) {
-                        decreasePitch = currentConnectedEngine.rpm < currentConnectedEngine.definition.engine.maxSafeRPM * 0.60;
-                    }
-                    if (currentPitch < definition.propeller.pitch) {
-                        increasePitch = currentConnectedEngine.rpm > currentConnectedEngine.definition.engine.maxSafeRPM * 0.85;
+                //If we are a dynamic-pitch propeller or rotor, adjust ourselves to the speed of the engine.
+                if (vehicleOn != null) {
+                    if (definition.propeller.isRotor) {
+                        double throttlePitchSetting = (vehicleOn.throttle * 1.35 - 0.35) * definition.propeller.pitch;
+                        if (throttlePitchSetting < currentPitch) {
+                            --currentPitch;
+                        } else if (throttlePitchSetting > currentPitch) {
+                            ++currentPitch;
+                        }
+                    } else if (definition.propeller.isDynamicPitch) {
+                        if (decreasePitch || (vehicleOn.reverseThrust && currentPitch > -MIN_DYNAMIC_PITCH)) {
+                            --currentPitch;
+                        } else if (increasePitch || (!vehicleOn.reverseThrust && currentPitch < MIN_DYNAMIC_PITCH)) {
+                            ++currentPitch;
+                        }
                     }
                 }
             }
 
-            //If we are a dynamic-pitch propeller or rotor, adjust ourselves to the speed of the engine.
-            if (vehicleOn != null) {
-                if (definition.propeller.isRotor) {
-                    double throttlePitchSetting = (vehicleOn.throttle * 1.35 - 0.35) * definition.propeller.pitch;
-                    if (throttlePitchSetting < currentPitch) {
-                        --currentPitch;
-                    } else if (throttlePitchSetting > currentPitch) {
-                        ++currentPitch;
-                    }
-                } else if (definition.propeller.isDynamicPitch) {
-                    if (decreasePitch || (vehicleOn.reverseThrust && currentPitch > -MIN_DYNAMIC_PITCH)) {
-                        --currentPitch;
-                    } else if (increasePitch || (!vehicleOn.reverseThrust && currentPitch < MIN_DYNAMIC_PITCH)) {
-                        ++currentPitch;
-                    }
-                }
+            //Adjust angular position and velocity.
+            if (currentRPM != 0) {
+                angularVelocity = (float) (currentRPM / 60F / 20F);
+            } else if (angularVelocity > .01) {
+                angularVelocity -= 0.01;
+            } else if (angularVelocity < -.01) {
+                angularVelocity += 0.01;
+            } else {
+                angularVelocity = 0;
             }
-        }
+            angularPosition += angularVelocity;
 
-        //Adjust angular position and velocity.
-        if (currentRPM != 0) {
-            angularVelocity = (float) (currentRPM / 60F / 20F);
-        } else if (angularVelocity > .01) {
-            angularVelocity -= 0.01;
-        } else if (angularVelocity < -.01) {
-            angularVelocity += 0.01;
-        } else {
-            angularVelocity = 0;
-        }
-        angularPosition += angularVelocity;
+            //Check for high values.  These get less accurate and cause funky rendering.
+            if (angularPosition > 3600000) {
+                angularPosition -= 3600000;
+                angularPosition -= 3600000;
+            } else if (angularPosition < -3600000) {
+                angularPosition += 3600000;
+                angularPosition += 3600000;
+            }
 
-        //Check for high values.  These get less accurate and cause funky rendering.
-        if (angularPosition > 3600000) {
-            angularPosition -= 3600000;
-            angularPosition -= 3600000;
-        } else if (angularPosition < -3600000) {
-            angularPosition += 3600000;
-            angularPosition += 3600000;
-        }
+            //Get the linear velocity of the air around the propeller, based on our axial velocity.
+            airstreamLinearVelocity = 20D * masterEntity.motion.dotProduct(propellerAxisVector, false);
+            //Get the desired linear velocity of the propeller, based on the current RPM and pitch.
+            //We add to the desired linear velocity by a small factor.  This is because the actual cruising speed of aircraft
+            //is based off of engine max RPM equating exactly to ideal linear speed of the propeller.  I'm sure there are nuances
+            //here, like perhaps the propeller manufactures reporting the prop pitch to match cruise, but for physics, that don't work,
+            //because the propeller never reaches that speed during cruise due to drag.  So we add a small addition here to compensate.
+            desiredLinearVelocity = 0.0254D * (currentPitch + 20) * 20D * angularVelocity;
 
-
-        //Get the linear velocity of the air around the propeller, based on our axial velocity.
-        airstreamLinearVelocity = 20D * masterEntity.motion.dotProduct(propellerAxisVector, false);
-        //Get the desired linear velocity of the propeller, based on the current RPM and pitch.
-        //We add to the desired linear velocity by a small factor.  This is because the actual cruising speed of aircraft
-        //is based off of engine max RPM equating exactly to ideal linear speed of the propeller.  I'm sure there are nuances
-        //here, like perhaps the propeller manufactures reporting the prop pitch to match cruise, but for physics, that don't work,
-        //because the propeller never reaches that speed during cruise due to drag.  So we add a small addition here to compensate.
-        desiredLinearVelocity = 0.0254D * (currentPitch + 20) * 20D * angularVelocity;
-
-        //Damage propeller or entities if required.
-        if (!world.isClient() && currentRPM >= 100) {
-            //Expand the bounding box bounds, and send off the attack.
-            boundingBox.widthRadius += 0.2;
-            boundingBox.heightRadius += 0.2;
-            boundingBox.depthRadius += 0.2;
-            IWrapperEntity controller = vehicleOn.getController();
-            LanguageEntry language = controller != null ? JSONConfigLanguage.DEATH_PROPELLER_PLAYER : JSONConfigLanguage.DEATH_PROPELLER_NULL;
-            Damage propellerDamage = new Damage(ConfigSystem.settings.damage.propellerDamageFactor.value * currentRPM / 500F, damageBounds, this, controller, language);
-            world.attackEntities(propellerDamage, null, false);
-            boundingBox.widthRadius -= 0.2;
-            boundingBox.heightRadius -= 0.2;
-            boundingBox.depthRadius -= 0.2;
+            //Damage propeller or entities if required.
+            if (!world.isClient() && currentRPM >= 100) {
+                //Expand the bounding box bounds, and send off the attack.
+                boundingBox.widthRadius += 0.2;
+                boundingBox.heightRadius += 0.2;
+                boundingBox.depthRadius += 0.2;
+                IWrapperEntity controller = vehicleOn.getController();
+                LanguageEntry language = controller != null ? JSONConfigLanguage.DEATH_PROPELLER_PLAYER : JSONConfigLanguage.DEATH_PROPELLER_NULL;
+                Damage propellerDamage = new Damage(ConfigSystem.settings.damage.propellerDamageFactor.value * currentRPM / 500F, damageBounds, this, controller, language);
+                world.attackEntities(propellerDamage, null, false);
+                boundingBox.widthRadius -= 0.2;
+                boundingBox.heightRadius -= 0.2;
+                boundingBox.depthRadius -= 0.2;
+            }
         }
     }
 

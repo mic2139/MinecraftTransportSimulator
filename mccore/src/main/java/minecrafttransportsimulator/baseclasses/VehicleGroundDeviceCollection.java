@@ -80,25 +80,33 @@ public class VehicleGroundDeviceCollection {
             } else {
                 //Cross-sectionals are not ready.  We must be a trailer or missing wheels.
                 //Check all ready boxes then.  If we find any that aren't grounded, we are not ready.
+                boolean anyBoxReady = false;
                 if (frontLeftGDB.isReady) {
+                    anyBoxReady = true;
                     if (!frontLeftGDB.isGrounded) {
                         cachedRestingState = false;
                     }
                 }
                 if (frontRightGDB.isReady) {
+                    anyBoxReady = true;
                     if (!frontRightGDB.isGrounded) {
                         cachedRestingState = false;
                     }
                 }
                 if (rearLeftGDB.isReady) {
+                    anyBoxReady = true;
                     if (!rearLeftGDB.isGrounded) {
                         cachedRestingState = false;
                     }
                 }
                 if (rearRightGDB.isReady) {
+                    anyBoxReady = true;
                     if (!rearRightGDB.isGrounded) {
                         cachedRestingState = false;
                     }
+                }
+                if (!anyBoxReady) {
+                    cachedRestingState = false;
                 }
             }
         }
@@ -242,7 +250,27 @@ public class VehicleGroundDeviceCollection {
      * should be performed since the state will be un-defined.  Additionally, vehicles should limit their movement depending on state. 
      */
     public boolean areAllChunksLoaded() {
-        return vehicle.world.isChunkLoaded(frontLeftGDB.getBoundingBox().globalCenter) && vehicle.world.isChunkLoaded(frontRightGDB.getBoundingBox().globalCenter) && vehicle.world.isChunkLoaded(rearLeftGDB.getBoundingBox().globalCenter) && vehicle.world.isChunkLoaded(rearRightGDB.getBoundingBox().globalCenter);
+        if (frontLeftGDB.isReady) {
+            if (!vehicle.world.isChunkLoaded(frontLeftGDB.getBoundingBox().globalCenter)) {
+                return false;
+            }
+        }
+        if (frontRightGDB.isReady) {
+            if (!vehicle.world.isChunkLoaded(frontRightGDB.getBoundingBox().globalCenter)) {
+                return false;
+            }
+        }
+        if (rearLeftGDB.isReady) {
+            if (!vehicle.world.isChunkLoaded(rearLeftGDB.getBoundingBox().globalCenter)) {
+                return false;
+            }
+        }
+        if (rearRightGDB.isReady) {
+            if (!vehicle.world.isChunkLoaded(rearRightGDB.getBoundingBox().globalCenter)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

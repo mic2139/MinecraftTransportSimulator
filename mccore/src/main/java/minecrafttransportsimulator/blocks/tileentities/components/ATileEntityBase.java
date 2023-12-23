@@ -59,15 +59,15 @@ public abstract class ATileEntityBase<JSONDefinition extends AJSONMultiModelProv
     }
 
     @Override
-    public boolean canUpdate() {
+    public EntityUpdateAction getUpdateAction() {
         //Don't update in unloaded chunks.  This wastes cycles, especially since we won't even be rendered.
-        return world.isChunkLoaded(position);
+        return world.isChunkLoaded(position) ? EntityUpdateAction.ALL : EntityUpdateAction.NONE;
     }
 
     @Override
-    public void update() {
-        super.update();
-        if (lastLightLevel != getLightProvided()) {
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
+        if (updateAction == EntityUpdateAction.ALL && lastLightLevel != getLightProvided()) {
             lastLightLevel = getLightProvided();
             world.updateLightBrightness(position);
         }

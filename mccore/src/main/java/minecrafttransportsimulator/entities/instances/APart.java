@@ -166,95 +166,101 @@ public abstract class APart extends AEntityF_Multipart<JSONPart> {
     }
 
     @Override
-    public void update() {
-        super.update();
-        isInvisible = false;
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
+        if (updateAction == EntityUpdateAction.ALL) {
+            isInvisible = false;
 
-        //Update active state.
-        isActive = partOn != null ? partOn.isActive : true;
-        if (isActive && placementActiveSwitchbox != null) {
-            isActive = placementActiveSwitchbox.runSwitchbox(0, false);
-        }
-        if (isActive && internalActiveSwitchbox != null) {
-            isActive = internalActiveSwitchbox.runSwitchbox(0, false);
-        }
-        if (!world.isClient() && !isActive && rider != null) {
-            //Kick out rider from inactive seat.
-            removeRider(true);
-        }
+            //Update active state.
+            isActive = partOn != null ? partOn.isActive : true;
+            if (isActive && placementActiveSwitchbox != null) {
+                isActive = placementActiveSwitchbox.runSwitchbox(0, false);
+            }
+            if (isActive && internalActiveSwitchbox != null) {
+                isActive = internalActiveSwitchbox.runSwitchbox(0, false);
+            }
+            if (!world.isClient() && !isActive && rider != null) {
+                //Kick out rider from inactive seat.
+                removeRider(true);
+            }
 
-        //Set initial offsets.
-        motion.set(entityOn.motion);
-        position.set(entityOn.position);
-        orientation.set(entityOn.orientation);
-        localOffset.set(placementDefinition.pos);
-        
-        //Update permanent-ness
-        isPermanent = (placementDefinition.lockingVariables != null) ? !isVariableListTrue(placementDefinition.lockingVariables) : placementDefinition.isPermanent;
+            //Set initial offsets.
+            motion.set(entityOn.motion);
+            position.set(entityOn.position);
+            orientation.set(entityOn.orientation);
+            localOffset.set(placementDefinition.pos);
 
-        //Update zero-reference.
-        prevZeroReferenceOrientation.set(zeroReferenceOrientation);
-        if (partOn != null) {
-            zeroReferenceOrientation.set(partOn.zeroReferenceOrientation);
+            //Update permanent-ness
+            isPermanent = (placementDefinition.lockingVariables != null) ? !isVariableListTrue(placementDefinition.lockingVariables) : placementDefinition.isPermanent;
+
+            //Update zero-reference.
+            prevZeroReferenceOrientation.set(zeroReferenceOrientation);
+            if (partOn != null) {
+                zeroReferenceOrientation.set(partOn.zeroReferenceOrientation);
+            } else {
+                zeroReferenceOrientation.set(entityOn.orientation);
+            }
+            if (placementDefinition.rot != null) {
+                zeroReferenceOrientation.multiply(placementDefinition.rot);
+            }
+
+            //Init orientation.
+            localOrientation.setToZero();
+
+            //First apply part slot animation translation and rotation.
+            //This will rotate us to our proper slot position.
+            if (placementMovementSwitchbox != null) {
+                isInvisible = !placementMovementSwitchbox.runSwitchbox(0, false);
+                //Offset needs to move according to full transform.
+                //This is because these coords are from what we are on.
+                //Orientation just needs to update according to new rotation.
+                localOffset.transform(placementMovementSwitchbox.netMatrix);
+                localOrientation.multiply(placementMovementSwitchbox.rotation);
+                externalAnglesRotated.set(placementMovementSwitchbox.rotation.convertToAngles());
+            } else {
+                externalAnglesRotated.set(0, 0, 0);
+            }
+
+            //Now rotate us to face the slot's requested orientation.
+            if (placementDefinition.rot != null) {
+                localOrientation.multiply(placementDefinition.rot);
+            }
+
+            //Now scale.  Needs to happen after placement operations to scale their transforms properly.
+            scale.set(entityOn.scale);
+            localOffset.multiply(scale);
+            if (placementDefinition.partScale != null) {
+                scale.multiply(placementDefinition.partScale);
+            }
+
+            //Finally, apply our internal translation and rotation.
+            if (internalMovementSwitchbox != null) {
+                isInvisible = !internalMovementSwitchbox.runSwitchbox(0, false) || isInvisible;
+                //Offset here, to apply to locals, needs to be multiplied by scale and local orientation.
+                //If we don't do this, then we won't calculate the locals right.
+                localOffset.add(internalMovementSwitchbox.translation.multiply(scale).rotate(localOrientation));
+                localOrientation.multiply(internalMovementSwitchbox.rotation);
+            }
+
+            //Set global position to reflect new local position.
+            Point3D localPositionDelta = new Point3D().set(localOffset).rotate(orientation);
+            position.add(localPositionDelta);
+            orientation.multiply(localOrientation);
+
+            //Adjust localOffset to align with actual local offset.  This happens if we are a sub-part.
+            if (partOn != null) {
+                localOffset.reOrigin(partOn.localOrientation).add(partOn.localOffset);
+            }
+
+            //Update bounding box, as scale changes width/height.
+            boundingBox.widthRadius = getWidth() / 2D * scale.x;
+            boundingBox.heightRadius = getHeight() / 2D * scale.y;
+            boundingBox.depthRadius = getWidth() / 2D * scale.z;
         } else {
-            zeroReferenceOrientation.set(entityOn.orientation);
+            //For syncing we just update position and orientation based on parent deltas.
+            position.add(entityOn.position).subtract(entityOn.prevPosition);
+            orientation.multiply(entityOn.orientation).multiplyTranspose(entityOn.prevOrientation);
         }
-        if (placementDefinition.rot != null) {
-            zeroReferenceOrientation.multiply(placementDefinition.rot);
-        }
-
-        //Init orientation.
-        localOrientation.setToZero();
-
-        //First apply part slot animation translation and rotation.
-        //This will rotate us to our proper slot position.
-        if (placementMovementSwitchbox != null) {
-            isInvisible = !placementMovementSwitchbox.runSwitchbox(0, false);
-            //Offset needs to move according to full transform.
-            //This is because these coords are from what we are on.
-            //Orientation just needs to update according to new rotation.
-            localOffset.transform(placementMovementSwitchbox.netMatrix);
-            localOrientation.multiply(placementMovementSwitchbox.rotation);
-            externalAnglesRotated.set(placementMovementSwitchbox.rotation.convertToAngles());
-        } else {
-            externalAnglesRotated.set(0, 0, 0);
-        }
-
-        //Now rotate us to face the slot's requested orientation.
-        if (placementDefinition.rot != null) {
-            localOrientation.multiply(placementDefinition.rot);
-        }
-
-        //Now scale.  Needs to happen after placement operations to scale their transforms properly.
-        scale.set(entityOn.scale);
-        localOffset.multiply(scale);
-        if (placementDefinition.partScale != null) {
-            scale.multiply(placementDefinition.partScale);
-        }
-
-        //Finally, apply our internal translation and rotation.
-        if (internalMovementSwitchbox != null) {
-            isInvisible = !internalMovementSwitchbox.runSwitchbox(0, false) || isInvisible;
-            //Offset here, to apply to locals, needs to be multiplied by scale and local orientation.
-            //If we don't do this, then we won't calculate the locals right.
-            localOffset.add(internalMovementSwitchbox.translation.multiply(scale).rotate(localOrientation));
-            localOrientation.multiply(internalMovementSwitchbox.rotation);
-        }
-
-        //Set global position to reflect new local position.
-        Point3D localPositionDelta = new Point3D().set(localOffset).rotate(orientation);
-        position.add(localPositionDelta);
-        orientation.multiply(localOrientation);
-
-        //Adjust localOffset to align with actual local offset.  This happens if we are a sub-part.
-        if (partOn != null) {
-            localOffset.reOrigin(partOn.localOrientation).add(partOn.localOffset);
-        }
-
-        //Update bounding box, as scale changes width/height.
-        boundingBox.widthRadius = getWidth() / 2D * scale.x;
-        boundingBox.heightRadius = getHeight() / 2D * scale.y;
-        boundingBox.depthRadius = getWidth() / 2D * scale.z;
     }
 
     @Override

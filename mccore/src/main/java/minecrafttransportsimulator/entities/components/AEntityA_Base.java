@@ -66,20 +66,21 @@ public abstract class AEntityA_Base {
     }
 
     /**
-     * Returns true if the main update call for this entity can be called.
+     * Performs and returns the update action for this entity.
      * This is checked if {@link #getUpdateType()} indicates an update is possible.
      * This should only be called ONCE per tick, as some entities may want to execute
      * update-independent logic in this function.
      */
-    public boolean canUpdate() {
-        return true;
+    public EntityUpdateAction getUpdateAction() {
+        return EntityUpdateAction.ALL;
     }
 
     /**
      * Called to update this entity.  This  may not be called if the entity extending this class
      * is not slated for updates in some sort of system.
+     * @param updateAction TODO
      */
-    public void update() {
+    public void update(EntityUpdateAction updateAction) {
         ++ticksExisted;
     }
 
@@ -164,6 +165,16 @@ public abstract class AEntityA_Base {
         /**Entity will update after all update calls have been processed, including external entities.
          * Useful for entities that depend on external entity processing for their states.**/
         LAST;
+    }
 
+    public static enum EntityUpdateAction {
+        /**Entity will update all things during update calls.  This is normal behavior.**/
+        ALL,
+        /**Entity will only update the minimum requirements to move for syncing.  Should not include animations or 
+         * collision as this happens server-side; this state is only for clients that need to move while synced.**/
+        SYNC,
+        /**Do not update this entity at all.  Only movement to this entity will be external to it.
+         * It can be assumed no state changes in the update call is required.**/
+        NONE;
     }
 }

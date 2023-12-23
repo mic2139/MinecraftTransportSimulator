@@ -66,8 +66,8 @@ public class TileEntitySignalController extends TileEntityDecor {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         //Check every 1 seconds to make sure controlled components are in their correct states.
         //This could have changed due to chunkloading or the components being destroyed.
         //We also check if we're doing changes on the client, as that needs to happen instantly.

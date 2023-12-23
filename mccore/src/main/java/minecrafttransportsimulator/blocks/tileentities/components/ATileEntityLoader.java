@@ -17,8 +17,8 @@ public abstract class ATileEntityLoader extends TileEntityDecor {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         //Do load/unload checks.  Checks only occur on servers.  Clients get packets for state changes.
         if (!world.isClient()) {
             if (connectedPart == null) {

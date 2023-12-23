@@ -74,10 +74,10 @@ public abstract class AEntityB_Existing extends AEntityA_Base {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         world.beginProfiling("EntityB_Level", true);
-        if (world.isClient()) {
+        if (updateAction == EntityUpdateAction.ALL && world.isClient()) {
             updateSounds(0);
         }
         if (requiresDeltaUpdates()) {
@@ -212,7 +212,7 @@ public abstract class AEntityB_Existing extends AEntityA_Base {
     public void updateSounds(float partialTicks) {
         //Update radio of we have one and we're on the main update.
         if (radio != null && partialTicks == 0) {
-            radio.update();
+            radio.update(EntityUpdateAction.ALL);
         }
     }
 

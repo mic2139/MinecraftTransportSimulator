@@ -242,7 +242,7 @@ public class PartGun extends APart {
     }
 
     @Override
-    public void update() {
+    public void update(EntityUpdateAction updateAction) {
         //Set gun state and do updates.
         firedThisCheck = false;
         isRunningInCoaxialMode = false;
@@ -548,7 +548,7 @@ public class PartGun extends APart {
         }
 
         //Now run super.  This needed to wait for the gun states to ensure proper states.
-        super.update();
+        super.update(updateAction);
 
         //If we have a controller seat on us, adjust the player's facing to account for our movement.
         //If we don't, we'll just rotate forever.

@@ -339,53 +339,55 @@ public abstract class AEntityE_Interactable<JSONDefinition extends AJSONInteract
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
 
         world.beginProfiling("EntityE_Level", true);
-        //Update damage and locked value
-        damageAmount = getVariable(DAMAGE_VARIABLE);
-        locked = isVariableActive(LOCKED_VARIABLE);
-        outOfHealth = damageAmount == definition.general.health && definition.general.health != 0;
+        if (updateAction == EntityUpdateAction.ALL) {
+            //Update damage and locked value
+            damageAmount = getVariable(DAMAGE_VARIABLE);
+            locked = isVariableActive(LOCKED_VARIABLE);
+            outOfHealth = damageAmount == definition.general.health && definition.general.health != 0;
 
-        //Only do camera checks if we have an active camera.
-        //Checking at other times wastes CPU cycles.
-        //We also wait 5 ticks after spawn before checking, since it might take time to init the cameras.
-        if (cameraIndex != 0 && ticksExisted >= 5) {
-            //Check for valid camera, and perform operations if so.
-            activeCamera = null;
-            while (cameraIndex != 0 && activeCamera == null) {
-                if ((cameraIndex - 1) < cameras.size()) {
-                    activeCamera = cameras.get(cameraIndex - 1);
-                    activeCameraEntity = cameraEntities.get(activeCamera);
-                    activeCameraSwitchbox = activeCameraEntity.cameraSwitchboxes.get(activeCamera);
-                    if (activeCameraSwitchbox != null && !activeCameraSwitchbox.runSwitchbox(0, false)) {
-                        //Camera is inactive, go to next.
-                        ++cameraIndex;
+            //Only do camera checks if we have an active camera.
+            //Checking at other times wastes CPU cycles.
+            //We also wait 5 ticks after spawn before checking, since it might take time to init the cameras.
+            if (cameraIndex != 0 && ticksExisted >= 5) {
+                //Check for valid camera, and perform operations if so.
+                activeCamera = null;
+                while (cameraIndex != 0 && activeCamera == null) {
+                    if ((cameraIndex - 1) < cameras.size()) {
+                        activeCamera = cameras.get(cameraIndex - 1);
+                        activeCameraEntity = cameraEntities.get(activeCamera);
+                        activeCameraSwitchbox = activeCameraEntity.cameraSwitchboxes.get(activeCamera);
+                        if (activeCameraSwitchbox != null && !activeCameraSwitchbox.runSwitchbox(0, false)) {
+                            //Camera is inactive, go to next.
+                            ++cameraIndex;
+                            activeCamera = null;
+                        }
+                    } else {
+                        //No active cameras found, set index to 0 to disable and go back to normal rendering.
+                        cameraIndex = 0;
                         activeCamera = null;
                     }
-                } else {
-                    //No active cameras found, set index to 0 to disable and go back to normal rendering.
-                    cameraIndex = 0;
-                    activeCamera = null;
                 }
             }
-        }
 
-        //Check for saved rider, if we need to get one.
-        //We only check once every second.  Eventually we will get the rider for this entity...
-        if (savedRiderUUID != null && rider == null) {
-            if (ticksExisted % 20 == 0) {
-                IWrapperEntity newRider = world.getExternalEntity(savedRiderUUID);
-                if (newRider != null) {
-                    setRider(newRider, false, true);
+            //Check for saved rider, if we need to get one.
+            //We only check once every second.  Eventually we will get the rider for this entity.
+            if (savedRiderUUID != null && rider == null) {
+                if (ticksExisted % 20 == 0) {
+                    IWrapperEntity newRider = world.getExternalEntity(savedRiderUUID);
+                    if (newRider != null) {
+                        setRider(newRider, false, true);
+                    }
                 }
             }
-        }
 
-        if (rider != null) {
-            //Add ourselves to the entity manager as having a rider to queue up an update later.
-            world.entitiesWithRiders.add(this);
+            if (rider != null) {
+                //Add ourselves to the entity manager as having a rider to queue up an update later.
+                world.entitiesWithRiders.add(this);
+            }
         }
 
         world.endProfiling();
@@ -668,9 +670,9 @@ public abstract class AEntityE_Interactable<JSONDefinition extends AJSONInteract
     }
 
     @Override
-    public void doPostUpdateLogic() {
-        super.doPostUpdateLogic();
-        if (requiresDeltaUpdates()) {
+    public void doPostUpdateLogic(EntityUpdateAction updateAction) {
+        super.doPostUpdateLogic(updateAction);
+        if (updateAction == EntityUpdateAction.ALL && requiresDeltaUpdates()) {
             //Update collision boxes to new position.
             world.beginProfiling("CollisionBoxUpdates", true);
             updateCollisionBoxes();

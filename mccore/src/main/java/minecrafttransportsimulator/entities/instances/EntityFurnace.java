@@ -39,8 +39,8 @@ public class EntityFurnace extends EntityInventoryContainer {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         if (ticksLeftToSmelt > 0) {
             //If we have no fuel, and are a standard type, get fuel from the stack in us.
             if (!world.isClient() && ticksLeftOfFuel == 0 && definition.furnaceType.equals(FurnaceComponentType.STANDARD)) {

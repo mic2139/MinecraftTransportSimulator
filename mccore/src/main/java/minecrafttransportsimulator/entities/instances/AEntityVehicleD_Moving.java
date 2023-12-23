@@ -125,8 +125,8 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         world.beginProfiling("VehicleD_Level", true);
         //If we were placed down, and this is our first tick, check our collision boxes to make sure we are't in the ground.
         if (ticksExisted == 1 && placingPlayer != null && !world.isClient()) {
@@ -172,29 +172,39 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
             addToServerDeltas(null, null, 0);
         }
 
-        //Update brake status.  This is used in a lot of locations, so we don't want to query the set every time.
-        brake = getVariable(BRAKE_VARIABLE);
-        parkingBrakeOn = isVariableActive(PARKINGBRAKE_VARIABLE);
+        if (updateAction == EntityUpdateAction.ALL) {
+            //Update brake status.  This is used in a lot of locations, so we don't want to query the set every time.
+            brake = getVariable(BRAKE_VARIABLE);
+            parkingBrakeOn = isVariableActive(PARKINGBRAKE_VARIABLE);
+        }
 
         //Now do update calculations and logic.
         if (!ConfigSystem.settings.general.noclipVehicles.value || groundDeviceCollective.isReady()) {
-            world.beginProfiling("GroundForces", false);
-            getForcesAndMotions();
-            world.beginProfiling("GroundOperations", false);
-            if (towedByConnection == null || !towedByConnection.hitchConnection.mounted) {
-                performGroundOperations();
+            if (updateAction == EntityUpdateAction.ALL) {
+                world.beginProfiling("GroundForces", false);
+                getForcesAndMotions();
+                world.beginProfiling("GroundOperations", false);
+                if (towedByConnection == null || !towedByConnection.hitchConnection.mounted) {
+                    performGroundOperations();
+                } else {
+                    slipping = false;
+                }
+                world.beginProfiling("TotalMovement", false);
+                moveVehicle();
+                if (!world.isClient()) {
+                    adjustControlSurfaces();
+                    if (!world.isValidPosition(position)) {
+                        remove();
+                    }
+                }
             } else {
-                slipping = false;
-            }
-            world.beginProfiling("TotalMovement", false);
-            moveVehicle();
-            if (!world.isClient()) {
-                adjustControlSurfaces();
-                if (!world.isValidPosition(position)) {
-                    remove();
+                //Just sync us with our syncing operations and update ground devices.
+                //Don't do other physics while not loaded.
+                performSyncingOperations(false);
+                if (world.isChunkLoaded(position)) {
+                    groundDeviceCollective.updateCollisions();
                 }
             }
-
         }
         world.endProfiling();
     }
@@ -253,7 +263,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
 
     /**
      * Helper function to perform syncing operations.  May either be called in the middle of movement, or 
-     * as its own function on the CLIENT if this entity has skipped updating via {@link #canUpdate()} 
+     * as its own function on the CLIENT if this entity has skipped updating via {@link #getUpdateAction()} 
      * to allow the client to sync it despite it not actively moving.  If updates were skipped, set
      * wasUpdated to false.
      */
@@ -312,17 +322,6 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
                 totalPathDelta += clientDeltaPApplied;
             }
             --serverSyncOperationCooldown;
-
-            if (!wasUpdated) {
-                //Set priors, since they won't be set during the main update call.
-                prevPosition.set(position);
-                prevOrientation.set(orientation);
-
-                //Set ground device 
-                if (world.isChunkLoaded(position)) {
-                    groundDeviceCollective.updateCollisions();
-                }
-            }
         }
     }
 
@@ -847,7 +846,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
             if (!collidedEntities.isEmpty()) {
                 world.beginProfiling("EntityMoveAlong", false);
                 for (AEntityE_Interactable<?> interactable : collidedEntities) {
-                    //Set angluar movement delta.
+                    //Set angular movement delta.
                     if (interactable instanceof AEntityVehicleD_Moving) {
                         vehicleCollisionRotation.set(interactable.orientation).multiplyTranspose(interactable.prevOrientation);
                         vehicleCollisionRotation.convertToAngles();

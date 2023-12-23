@@ -123,8 +123,8 @@ public class EntityBullet extends AEntityD_Definable<JSONBullet> {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
 
         //Check if we impacted.  If so, don't process anything and just stay in place.
         if (impactDespawnTimer >= 0) {

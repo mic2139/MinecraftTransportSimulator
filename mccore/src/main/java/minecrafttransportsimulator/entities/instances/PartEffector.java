@@ -39,10 +39,10 @@ public class PartEffector extends APart {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         //If we are active, do effector things.  Only do these on the server, clients get packets.
-        if (isActive && !world.isClient() && !outOfHealth) {
+        if (updateAction == EntityUpdateAction.ALL && isActive && !world.isClient() && !outOfHealth) {
             drops.clear();
             blockFlooredPositionsBrokeThisTick.clear();
             for (BoundingBox box : entityCollisionBoxes) {

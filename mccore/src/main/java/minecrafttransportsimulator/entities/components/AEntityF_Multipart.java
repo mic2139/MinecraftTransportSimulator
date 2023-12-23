@@ -177,96 +177,100 @@ public abstract class AEntityF_Multipart<JSONDefinition extends AJSONPartProvide
     }
 
     @Override
-    public void update() {
-        //Need to do this before updating as these require knowledge of prior states.
-        //If we call super, then it will overwrite the prior state.
-        //We update both our variables and our part variables here.
-        updateVariableModifiers();
-        for (APart part : parts) {
-            part.updateVariableModifiers();
+    public void update(EntityUpdateAction updateAction) {
+        if (updateAction == EntityUpdateAction.ALL) {
+            //Need to do this before updating as these require knowledge of prior states.
+            //If we call super, then it will overwrite the prior state.
+            //We update both our variables and our part variables here.
+            updateVariableModifiers();
+            for (APart part : parts) {
+                part.updateVariableModifiers();
+            }
         }
 
         //Now call super and do the updates.
-        super.update();
+        super.update(updateAction);
         world.beginProfiling("EntityF_Level", true);
 
-        if (partToPlace != null && --placeTimer == 0) {
-            JSONPartDefinition otherPartDef = placedPart.definition.parts.get(0);
-            partToPlace.linkToEntity(placedPart, otherPartDef);
-            placedPart.addPart(partToPlace, false);
-            InterfaceManager.packetInterface.sendToAllClients(new PacketPartChange_Transfer(partToPlace, placedPart, otherPartDef));
-            partToPlace = null;
-            placedPart = null;
-        }
+        if (updateAction == EntityUpdateAction.ALL) {
+            if (partToPlace != null && --placeTimer == 0) {
+                JSONPartDefinition otherPartDef = placedPart.definition.parts.get(0);
+                partToPlace.linkToEntity(placedPart, otherPartDef);
+                placedPart.addPart(partToPlace, false);
+                InterfaceManager.packetInterface.sendToAllClients(new PacketPartChange_Transfer(partToPlace, placedPart, otherPartDef));
+                partToPlace = null;
+                placedPart = null;
+            }
 
-        //Populate active part slot list and update box positions.
-        //Only do this on clients; servers reference the main list to handle clicks.
-        //Boxes added on clients depend on what the player is holding.
-        //We add these before part boxes so the player can click them before clicking a part.
-        if (world.isClient() && !partSlotBoxes.isEmpty()) {
-            world.beginProfiling("PartSlotActives", false);
-            activePartSlotBoxes.clear();
-            if (canBeClicked()) {
-                IWrapperPlayer player = InterfaceManager.clientInterface.getClientPlayer();
-                AItemBase heldItem = player.getHeldItem();
-                if (heldItem instanceof AItemPart) {
-                    for (Entry<BoundingBox, JSONPartDefinition> partSlotBoxEntry : partSlotBoxes.entrySet()) {
-                        AItemPart heldPart = (AItemPart) heldItem;
-                        //Does the part held match this packPart?
-                        if (heldPart.isPartValidForPackDef(partSlotBoxEntry.getValue(), subDefinition, false)) {
-                            //Are there any doors blocking us from clicking this part?
-                            if (isVariableListTrue(partSlotBoxEntry.getValue().interactableVariables)) {
-                                //Part matches.  Add the box.  Set the box bounds to the generic box, or the
-                                //special bounds of the generic part if we're holding one.
-                                BoundingBox box = partSlotBoxEntry.getKey();
-                                box.widthRadius = (heldPart.definition.generic.width != 0 ? heldPart.definition.generic.width / 2D : PART_SLOT_HITBOX_WIDTH / 2D) * scale.x;
-                                box.heightRadius = (heldPart.definition.generic.height != 0 ? heldPart.definition.generic.height / 2D : PART_SLOT_HITBOX_HEIGHT / 2D) * scale.y;
-                                box.depthRadius = (heldPart.definition.generic.width != 0 ? heldPart.definition.generic.width / 2D : PART_SLOT_HITBOX_WIDTH / 2D) * scale.z;
-                                activePartSlotBoxes.put(partSlotBoxEntry.getKey(), partSlotBoxEntry.getValue());
-                                forceCollisionUpdateThisTick = true;
-                                if(this instanceof APart) {
-                                    ((APart) this).masterEntity.forceCollisionUpdateThisTick = true;
+            //Populate active part slot list and update box positions.
+            //Only do this on clients; servers reference the main list to handle clicks.
+            //Boxes added on clients depend on what the player is holding.
+            //We add these before part boxes so the player can click them before clicking a part.
+            if (world.isClient() && !partSlotBoxes.isEmpty()) {
+                world.beginProfiling("PartSlotActives", false);
+                activePartSlotBoxes.clear();
+                if (canBeClicked()) {
+                    IWrapperPlayer player = InterfaceManager.clientInterface.getClientPlayer();
+                    AItemBase heldItem = player.getHeldItem();
+                    if (heldItem instanceof AItemPart) {
+                        for (Entry<BoundingBox, JSONPartDefinition> partSlotBoxEntry : partSlotBoxes.entrySet()) {
+                            AItemPart heldPart = (AItemPart) heldItem;
+                            //Does the part held match this packPart?
+                            if (heldPart.isPartValidForPackDef(partSlotBoxEntry.getValue(), subDefinition, false)) {
+                                //Are there any doors blocking us from clicking this part?
+                                if (isVariableListTrue(partSlotBoxEntry.getValue().interactableVariables)) {
+                                    //Part matches.  Add the box.  Set the box bounds to the generic box, or the
+                                    //special bounds of the generic part if we're holding one.
+                                    BoundingBox box = partSlotBoxEntry.getKey();
+                                    box.widthRadius = (heldPart.definition.generic.width != 0 ? heldPart.definition.generic.width / 2D : PART_SLOT_HITBOX_WIDTH / 2D) * scale.x;
+                                    box.heightRadius = (heldPart.definition.generic.height != 0 ? heldPart.definition.generic.height / 2D : PART_SLOT_HITBOX_HEIGHT / 2D) * scale.y;
+                                    box.depthRadius = (heldPart.definition.generic.width != 0 ? heldPart.definition.generic.width / 2D : PART_SLOT_HITBOX_WIDTH / 2D) * scale.z;
+                                    activePartSlotBoxes.put(partSlotBoxEntry.getKey(), partSlotBoxEntry.getValue());
+                                    forceCollisionUpdateThisTick = true;
+                                    if (this instanceof APart) {
+                                        ((APart) this).masterEntity.forceCollisionUpdateThisTick = true;
+                                    }
                                 }
                             }
                         }
-                    }
-                } else if (heldItem instanceof ItemItem && ((ItemItem) heldItem).definition.item.type == ItemComponentType.SCANNER) {
-                    //Don't check held parts, just check if we can actually place anything in a slot.
-                    for (Entry<BoundingBox, JSONPartDefinition> partSlotBoxEntry : partSlotBoxes.entrySet()) {
-                        if (isVariableListTrue(partSlotBoxEntry.getValue().interactableVariables)) {
-                            activePartSlotBoxes.put(partSlotBoxEntry.getKey(), partSlotBoxEntry.getValue());
-                            forceCollisionUpdateThisTick = true;
+                    } else if (heldItem instanceof ItemItem && ((ItemItem) heldItem).definition.item.type == ItemComponentType.SCANNER) {
+                        //Don't check held parts, just check if we can actually place anything in a slot.
+                        for (Entry<BoundingBox, JSONPartDefinition> partSlotBoxEntry : partSlotBoxes.entrySet()) {
+                            if (isVariableListTrue(partSlotBoxEntry.getValue().interactableVariables)) {
+                                activePartSlotBoxes.put(partSlotBoxEntry.getKey(), partSlotBoxEntry.getValue());
+                                forceCollisionUpdateThisTick = true;
+                            }
                         }
                     }
                 }
-            }
 
-            //Update part slot box positions.
-            if (requiresDeltaUpdates()) {
-                world.beginProfiling("PartSlotPositions", false);
-                activePartSlotBoxes.forEach((box, partDef) -> {
-                    AnimationSwitchbox switchBox = partSlotSwitchboxes.get(partDef);
-                    if (switchBox != null) {
-                        if (switchBox.runSwitchbox(0, false)) {
-                            box.globalCenter.set(box.localCenter).transform(switchBox.netMatrix);
-                            box.updateToEntity(this, box.globalCenter);
+                //Update part slot box positions.
+                if (requiresDeltaUpdates()) {
+                    world.beginProfiling("PartSlotPositions", false);
+                    activePartSlotBoxes.forEach((box, partDef) -> {
+                        AnimationSwitchbox switchBox = partSlotSwitchboxes.get(partDef);
+                        if (switchBox != null) {
+                            if (switchBox.runSwitchbox(0, false)) {
+                                box.globalCenter.set(box.localCenter).transform(switchBox.netMatrix);
+                                box.updateToEntity(this, box.globalCenter);
+                            }
+                        } else {
+                            box.updateToEntity(this, null);
                         }
-                    } else {
-                        box.updateToEntity(this, null);
-                    }
-                });
+                    });
+                }
             }
-        }
 
-        //Check for part slot variable changes and do logic.
-        if (!world.isClient() && definition.parts != null) {
-            for (int i = 0; i < definition.parts.size(); ++i) {
-                JSONPartDefinition partDef = definition.parts.get(i);
-                if (partDef.transferVariable != null) {
-                    if (isVariableActive(partDef.transferVariable)) {
-                        transferPart(partDef);
-                        toggleVariable(partDef.transferVariable);
-                        InterfaceManager.packetInterface.sendToAllClients(new PacketEntityVariableToggle(this, partDef.transferVariable));
+            //Check for part slot variable changes and do logic.
+            if (!world.isClient() && definition.parts != null) {
+                for (int i = 0; i < definition.parts.size(); ++i) {
+                    JSONPartDefinition partDef = definition.parts.get(i);
+                    if (partDef.transferVariable != null) {
+                        if (isVariableActive(partDef.transferVariable)) {
+                            transferPart(partDef);
+                            toggleVariable(partDef.transferVariable);
+                            InterfaceManager.packetInterface.sendToAllClients(new PacketEntityVariableToggle(this, partDef.transferVariable));
+                        }
                     }
                 }
             }
@@ -559,7 +563,7 @@ public abstract class AEntityF_Multipart<JSONDefinition extends AJSONPartProvide
     }
 
     @Override
-    public void doPostUpdateLogic() {
+    public void doPostUpdateLogic(EntityUpdateAction updateAction) {
         //Update parts prior to doing our post-updates.
         //This is required for trailers, as they may attached to parts.
         //This also ensures that during our post-update loop, all parts are post-updated.
@@ -567,16 +571,16 @@ public abstract class AEntityF_Multipart<JSONDefinition extends AJSONPartProvide
         Iterator<APart> iterator = parts.iterator();
         while (iterator.hasNext()) {
             APart part = iterator.next();
-            part.update();
+            part.update(updateAction);
             if (!part.isValid) {
                 //Part was removed during updates, remove from the part listing.
                 removePart(part, true, iterator);
             } else {
-                part.doPostUpdateLogic();
+                part.doPostUpdateLogic(updateAction);
             }
         }
         world.endProfiling();
-        super.doPostUpdateLogic();
+        super.doPostUpdateLogic(updateAction);
     }
 
     @Override

@@ -24,8 +24,8 @@ public class TileEntityItemLoader extends ATileEntityLoader implements ITileEnti
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         if (isUnloader()) {
             //Push stack to inventory below to ready for unload.
             //Need to advance stack-grabbing by 1 tick from rate to ensure that slot is free during next unloading cycle.

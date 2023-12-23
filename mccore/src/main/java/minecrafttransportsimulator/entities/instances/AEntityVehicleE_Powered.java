@@ -86,129 +86,131 @@ public abstract class AEntityVehicleE_Powered extends AEntityVehicleD_Moving {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         world.beginProfiling("VehicleE_Level", true);
 
-        //Get throttle and reverse state.
-        throttle = getVariable(THROTTLE_VARIABLE);
-        reverseThrust = isVariableActive(REVERSE_THRUST_VARIABLE);
+        if (updateAction == EntityUpdateAction.ALL) {
+            //Get throttle and reverse state.
+            throttle = getVariable(THROTTLE_VARIABLE);
+            reverseThrust = isVariableActive(REVERSE_THRUST_VARIABLE);
 
-        //If we have space for fuel, and we have tanks with it, transfer it.
-        if (!world.isClient() && fuelTank.getFluidLevel() < definition.motorized.fuelCapacity - 100) {
-            for (APart part : allParts) {
-                if (part instanceof PartInteractable && part.isActive && part.definition.interactable.feedsVehicles) {
-                    EntityFluidTank tank = ((PartInteractable) part).tank;
-                    if (tank != null) {
-                        double amountFilled = tank.drain(fuelTank.getFluid(), 1, true);
-                        if (amountFilled > 0) {
-                            fuelTank.fill(fuelTank.getFluid(), amountFilled, true);
+            //If we have space for fuel, and we have tanks with it, transfer it.
+            if (!world.isClient() && fuelTank.getFluidLevel() < definition.motorized.fuelCapacity - 100) {
+                for (APart part : allParts) {
+                    if (part instanceof PartInteractable && part.isActive && part.definition.interactable.feedsVehicles) {
+                        EntityFluidTank tank = ((PartInteractable) part).tank;
+                        if (tank != null) {
+                            double amountFilled = tank.drain(fuelTank.getFluid(), 1, true);
+                            if (amountFilled > 0) {
+                                fuelTank.fill(fuelTank.getFluid(), amountFilled, true);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        //Check to make sure the selected beacon is still correct.
-        //It might not be valid if it has been removed from the world,
-        //or one might have been placed that matches our selection.
-        if (definition.motorized.isAircraft && ticksExisted % 20 == 0) {
-            if (!selectedBeaconName.isEmpty()) {
-                selectedBeacon = NavBeacon.getByNameFromWorld(world, selectedBeaconName);
-            } else {
-                selectedBeacon = null;
-            }
-        }
-
-        //Do trailer-specific logic, if we are one and towed.
-        //Otherwise, do normal update logic for DRLs.
-        if (definition.motorized.isTrailer) {
-            //If we are being towed set the brake state to the same as the towing vehicle.
-            //If we aren't being towed, set the parking brake.
-            if (towedByConnection != null) {
-                if (parkingBrakeOn) {
-                    toggleVariable(PARKINGBRAKE_VARIABLE);
-                }
-                setVariable(BRAKE_VARIABLE, towedByConnection.towingVehicle.brake);
-            } else {
-                if (!parkingBrakeOn) {
-                    toggleVariable(PARKINGBRAKE_VARIABLE);
-                }
-                if (brake != 0) {
-                    setVariable(BRAKE_VARIABLE, 0);
+            //Check to make sure the selected beacon is still correct.
+            //It might not be valid if it has been removed from the world,
+            //or one might have been placed that matches our selection.
+            if (definition.motorized.isAircraft && ticksExisted % 20 == 0) {
+                if (!selectedBeaconName.isEmpty()) {
+                    selectedBeacon = NavBeacon.getByNameFromWorld(world, selectedBeaconName);
+                } else {
+                    selectedBeacon = null;
                 }
             }
-        } else {
-            //Set engine state mapping variables.
-            enginesOn = false;
-            enginesStarting = false;
-            enginesRunning = false;
-            for (PartEngine engine : engines) {
-                if (engine.magnetoOn) {
-                    enginesOn = true;
-                    if (engine.electricStarterEngaged) {
-                        enginesStarting = true;
+
+            //Do trailer-specific logic, if we are one and towed.
+            //Otherwise, do normal update logic for DRLs.
+            if (definition.motorized.isTrailer) {
+                //If we are being towed set the brake state to the same as the towing vehicle.
+                //If we aren't being towed, set the parking brake.
+                if (towedByConnection != null) {
+                    if (parkingBrakeOn) {
+                        toggleVariable(PARKINGBRAKE_VARIABLE);
                     }
-                    if (engine.running) {
-                        enginesRunning = true;
-                        break;
+                    setVariable(BRAKE_VARIABLE, towedByConnection.towingVehicle.brake);
+                } else {
+                    if (!parkingBrakeOn) {
+                        toggleVariable(PARKINGBRAKE_VARIABLE);
+                    }
+                    if (brake != 0) {
+                        setVariable(BRAKE_VARIABLE, 0);
                     }
                 }
+            } else {
+                //Set engine state mapping variables.
+                enginesOn = false;
+                enginesStarting = false;
+                enginesRunning = false;
+                for (PartEngine engine : engines) {
+                    if (engine.magnetoOn) {
+                        enginesOn = true;
+                        if (engine.electricStarterEngaged) {
+                            enginesStarting = true;
+                        }
+                        if (engine.running) {
+                            enginesRunning = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            //If we are a trailer, get the towing vehicle's electric power.
+            //If we are too damaged, don't hold any charge.
+            if (definition.motorized.isTrailer) {
+                if (towedByConnection != null) {
+                    electricPower = towedByConnection.towingVehicle.electricPower;
+                }
+            } else if (!outOfHealth) {
+                electricPower = Math.max(0, Math.min(13, electricPower -= electricUsage));
+                electricFlow = electricUsage;
+                electricUsage = 0;
+            } else {
+                electricPower = 0;
+                electricFlow = 0;
+                electricUsage = 0;
+            }
+
+            //Adjust gear variables.
+            if (isVariableActive(GEAR_VARIABLE)) {
+                if (gearMovementTime < definition.motorized.gearSequenceDuration) {
+                    ++gearMovementTime;
+                }
+            } else {
+                if (gearMovementTime > 0) {
+                    --gearMovementTime;
+                }
+            }
+
+            //Update missile list to sort by distance.
+            missilesIncoming.sort((missle1, missile2) -> missle1.targetDistance < missile2.targetDistance ? -1 : 1);
+
+            //Check to make sure we are still being tracked.
+            radarsTracking.removeIf(tracker -> !tracker.isValid || (!tracker.aircraftOnRadar.contains(this) && !tracker.groundersOnRadar.contains(this)));
+
+            //If we are supposed to de-spawn, do so.
+            if (outOfHealth && ConfigSystem.settings.general.vehicleDeathDespawnTime.value > 0) {
+                if (++ticksOutOfHealth > ConfigSystem.settings.general.vehicleDeathDespawnTime.value * 20) {
+                    remove();
+                }
             }
         }
 
-        //If we are a trailer, get the towing vehicle's electric power.
-        //If we are too damaged, don't hold any charge.
-        if (definition.motorized.isTrailer) {
-            if (towedByConnection != null) {
-                electricPower = towedByConnection.towingVehicle.electricPower;
-            }
-        } else if (!outOfHealth) {
-            electricPower = Math.max(0, Math.min(13, electricPower -= electricUsage));
-            electricFlow = electricUsage;
-            electricUsage = 0;
-        } else {
-            electricPower = 0;
-            electricFlow = 0;
-            electricUsage = 0;
-        }
-
-        //Adjust gear variables.
-        if (isVariableActive(GEAR_VARIABLE)) {
-            if (gearMovementTime < definition.motorized.gearSequenceDuration) {
-                ++gearMovementTime;
-            }
-        } else {
-            if (gearMovementTime > 0) {
-                --gearMovementTime;
-            }
-        }
-
-        //Update missile list to sort by distance.
-        missilesIncoming.sort((missle1, missile2) -> missle1.targetDistance < missile2.targetDistance ? -1 : 1);
-
-        //Check to make sure we are still being tracked.
-        radarsTracking.removeIf(tracker -> !tracker.isValid || (!tracker.aircraftOnRadar.contains(this) && !tracker.groundersOnRadar.contains(this)));
-
-        //If we are supposed to de-spawn, do so.
-        if (outOfHealth && ConfigSystem.settings.general.vehicleDeathDespawnTime.value > 0) {
-            if (++ticksOutOfHealth > ConfigSystem.settings.general.vehicleDeathDespawnTime.value * 20) {
-                remove();
-            }
-        }
         world.endProfiling();
     }
 
     @Override
-    public boolean canUpdate() {
-        boolean result = super.canUpdate();
+    public EntityUpdateAction getUpdateAction() {
+        EntityUpdateAction result = super.getUpdateAction();
         //Don't update if we have run more than 1 tick and aren't loaded in a chunk.
         //Need to run at least 1 tick to load parts from saved data to see if they're in a loaded chunk period.
-        if (result && !groundDeviceCollective.areAllChunksLoaded() && ticksExisted > 1) {
-            result = !groundDeviceCollective.isAnythingOnGround() && enginesRunning;
-        }
-        if (!result && world.isClient()) {
-            performSyncingOperations(false);
+        if (result == EntityUpdateAction.ALL && !groundDeviceCollective.areAllChunksLoaded() && ticksExisted > 1) {
+            if (groundDeviceCollective.isAnythingOnGround() && !enginesRunning) {
+                result = world.isClient() ? EntityUpdateAction.SYNC : EntityUpdateAction.NONE;
+            }
         }
         return result;
     }

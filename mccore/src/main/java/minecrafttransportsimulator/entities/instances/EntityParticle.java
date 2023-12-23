@@ -231,8 +231,8 @@ public class EntityParticle extends AEntityC_Renderable {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         //Check age to see if we are on our last tick.
         if (ticksExisted == maxAge) {
             remove();

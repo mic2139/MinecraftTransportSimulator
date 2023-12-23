@@ -155,8 +155,8 @@ public class EntityVehicleF_Physics extends AEntityVehicleE_Powered {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         world.beginProfiling("VehicleF_Level", true);
         if (repairCooldownTicks > 0) {
             --repairCooldownTicks;
@@ -820,7 +820,7 @@ public class EntityVehicleF_Physics extends AEntityVehicleE_Powered {
                 return speedFactor;
             case ("acceleration"):
                 double acceleration = motion.length() - prevMotion.length();
-                return acceleration > 0.025 || acceleration < -0.025 ? acceleration : 0;
+                return acceleration;
             case ("road_angle_front"):
                 return frontFollower != null ? frontFollower.getCurrentYaw() - orientation.angles.y : 0;
             case ("road_angle_rear"):

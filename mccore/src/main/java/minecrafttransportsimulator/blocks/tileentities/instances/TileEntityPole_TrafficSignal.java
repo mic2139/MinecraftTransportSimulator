@@ -21,8 +21,8 @@ public class TileEntityPole_TrafficSignal extends ATileEntityPole_Component {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         if (linkedController != null) {
             //Remove all old lights, then add our new one.
             for (LightType light : LightType.values()) {

@@ -115,10 +115,10 @@ public final class PartInteractable extends APart {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         if (furnace != null) {
-            furnace.update();
+            furnace.update(updateAction);
             //Only look for fuel when we're processing and don't have any.
             if (!world.isClient() && furnace.ticksLeftOfFuel == 0 && furnace.ticksLeftToSmelt > 0) {
                 addFurnaceFuel();

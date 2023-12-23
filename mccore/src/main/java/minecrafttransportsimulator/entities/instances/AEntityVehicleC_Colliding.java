@@ -49,35 +49,37 @@ abstract class AEntityVehicleC_Colliding extends AEntityG_Towable<JSONVehicle> {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         world.beginProfiling("VehicleC_Level", true);
 
-        //Set vectors to current velocity and orientation.
-        world.beginProfiling("SetVectors", true);
-        headingVector.set(0D, 0D, 1D);
-        headingVector.rotate(orientation);
-        axialVelocity = Math.abs(motion.dotProduct(headingVector, false));
+        if (updateAction == EntityUpdateAction.ALL) {
+            //Set vectors to current velocity and orientation.
+            world.beginProfiling("SetVectors", true);
+            headingVector.set(0D, 0D, 1D);
+            headingVector.rotate(orientation);
+            axialVelocity = Math.abs(motion.dotProduct(headingVector, false));
 
-        //Update mass.
-        world.beginProfiling("SetMass", false);
-        currentMass = getMass();
+            //Update mass.
+            world.beginProfiling("SetMass", false);
+            currentMass = getMass();
 
-        //Auto-close any open doors that should be closed.
-        //Only do this once a second to prevent lag.
-        if (!world.isClient() && velocity > 0.5 && ticksExisted % 20 == 0) {
-            world.beginProfiling("CloseDoors", false);
-            for (String variable : variables.keySet()) {
-                if (variable.startsWith("door")) {
-                    variables.remove(variable);
-                    InterfaceManager.packetInterface.sendToAllClients(new PacketEntityVariableSet(this, variable, 0));
-                    //Need to do this or we CME on the loop.
-                    break;
+            //Auto-close any open doors that should be closed.
+            //Only do this once a second to prevent lag.
+            if (!world.isClient() && velocity > 0.5 && ticksExisted % 20 == 0) {
+                world.beginProfiling("CloseDoors", false);
+                for (String variable : variables.keySet()) {
+                    if (variable.startsWith("door")) {
+                        variables.remove(variable);
+                        InterfaceManager.packetInterface.sendToAllClients(new PacketEntityVariableSet(this, variable, 0));
+                        //Need to do this or we CME on the loop.
+                        break;
+                    }
                 }
             }
+            world.endProfiling();
         }
 
-        world.endProfiling();
         world.endProfiling();
     }
 

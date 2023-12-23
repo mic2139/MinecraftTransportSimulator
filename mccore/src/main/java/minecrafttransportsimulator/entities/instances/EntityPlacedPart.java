@@ -55,20 +55,20 @@ public class EntityPlacedPart extends AEntityF_Multipart<JSONDummyPartProvider> 
     }
 
     @Override
-    public boolean canUpdate() {
+    public EntityUpdateAction getUpdateAction() {
         //Don't update in unloaded chunks.  This wastes cycles, especially since we won't even be rendered.
-        return world.isChunkLoaded(position);
+        return world.isChunkLoaded(position) ? EntityUpdateAction.ALL : EntityUpdateAction.NONE;
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         //TODO will NOT be empty normally, but have to check due to syncing.  See F-class TODO for details.
         if (parts.isEmpty()) {
             if (ticksExisted > 100) {
                 remove();
             }
-        } else {
+        } else if (updateAction == EntityUpdateAction.ALL) {
             currentPart = parts.get(0);
             if (currentPart != null) {
                 currentPart.placementDefinition.pos.y = currentPart.definition.generic.placedOffset;

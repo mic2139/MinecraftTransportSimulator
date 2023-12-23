@@ -66,14 +66,14 @@ public abstract class AEntityG_Towable<JSONDefinition extends AJSONPartProvider>
     }
 
     @Override
-    public boolean canUpdate() {
+    public EntityUpdateAction getUpdateAction() {
         //Only let us update if we aren't being towed.  If we are being towed, our towing vehicle will update us.
-        return towedByConnection == null;
+        return towedByConnection == null ? EntityUpdateAction.ALL : EntityUpdateAction.NONE;
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         world.beginProfiling("EntityG_Level", true);
         if (!world.isClient()) {
             //Do validity checks for towing variables.  We could do this whenever we disconnect,
@@ -248,16 +248,16 @@ public abstract class AEntityG_Towable<JSONDefinition extends AJSONPartProvider>
     }
 
     @Override
-    public void doPostUpdateLogic() {
-        super.doPostUpdateLogic();
+    public void doPostUpdateLogic(EntityUpdateAction updateAction) {
+        super.doPostUpdateLogic(updateAction);
         //If we are towing entities, update them now.
         if (!towingConnections.isEmpty()) {
             world.beginProfiling("TowedEntities", true);
             for (TowingConnection connection : towingConnections) {
                 connection.hitchPriorPosition.set(connection.hitchCurrentPosition);
                 connection.hitchCurrentPosition.set(connection.hitchConnection.pos).multiply(connection.towingEntity.scale).rotate(connection.towingEntity.orientation).add(connection.towingEntity.position);
-                connection.towedVehicle.update();
-                connection.towedVehicle.doPostUpdateLogic();
+                connection.towedVehicle.update(updateAction);
+                connection.towedVehicle.doPostUpdateLogic(updateAction);
                 //If the towed vehicle is no longer towed, it means we disconnected from this entity.
                 //Bail rather than continue to avoid a CME.
                 if (connection.towedVehicle.towedByConnection == null) {

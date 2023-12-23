@@ -65,8 +65,8 @@ public class EntityRadio extends AEntityB_Existing {
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         position.set(provider.position);
         if (world.isClient() && currentSound != null) {
             double distance = position.distanceTo(InterfaceManager.clientInterface.getClientPlayer().getPosition());
@@ -90,7 +90,7 @@ public class EntityRadio extends AEntityB_Existing {
      * Starts radio playback, making a new sound instance to do so.
      * This command comes from the currently-selected radio station when
      * it has connected and is ready to play sound.  Start volume at 0.
-     * The {@link #update()} function will set the volume on the next call.
+     * The {@link #update(EntityUpdateAction)} function will set the volume on the next call.
      */
     public void start() {
         currentSound = new SoundInstance(this, "Radio_" + uniqueUUID, null, this);

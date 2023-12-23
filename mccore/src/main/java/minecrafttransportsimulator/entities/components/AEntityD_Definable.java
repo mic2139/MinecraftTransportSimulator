@@ -192,8 +192,8 @@ public abstract class AEntityD_Definable<JSONDefinition extends AJSONMultiModelP
     }
 
     @Override
-    public void update() {
-        super.update();
+    public void update(EntityUpdateAction updateAction) {
+        super.update(updateAction);
         world.beginProfiling("EntityD_Level", true);
         if (!animationsInitialized) {
             initializeAnimations();
@@ -201,7 +201,7 @@ public abstract class AEntityD_Definable<JSONDefinition extends AJSONMultiModelP
         }
 
         //Only update radar once a second, and only if we requested it via variables.
-        if (definition.general.radarRange > 0 && ticksExisted % 20 == 0) {
+        if (updateAction == EntityUpdateAction.ALL && definition.general.radarRange > 0 && ticksExisted % 20 == 0) {
             Collection<EntityVehicleF_Physics> allVehicles = world.getEntitiesOfType(EntityVehicleF_Physics.class);
             aircraftOnRadar.clear();
             groundersOnRadar.clear();
@@ -230,14 +230,14 @@ public abstract class AEntityD_Definable<JSONDefinition extends AJSONMultiModelP
     }
 
     /**
-     * Called to perform supplemental update logic on this entity.  This is called after the main {@link #update()}
+     * Called to perform supplemental update logic on this entity.  This is called after the main {@link #update(EntityUpdateAction)}
      * loop, and is used to do updates that require the new state to be ready.  At this point, all "prior" values
      * and current values will be set to their current states.  Normally, this just updates the rider position to
      * their new position as defined by this entity.
      */
-    public void doPostUpdateLogic() {
+    public void doPostUpdateLogic(EntityUpdateAction updateAction) {
         //Update value-based text.  Only do this on clients as servers won't render this text.
-        if (world.isClient() && !text.isEmpty()) {
+        if (updateAction == EntityUpdateAction.ALL && world.isClient() && !text.isEmpty()) {
             for (Entry<JSONText, String> textEntry : text.entrySet()) {
                 JSONText textDef = textEntry.getKey();
                 if (textDef.variableName != null) {
