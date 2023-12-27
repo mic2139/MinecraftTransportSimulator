@@ -687,7 +687,7 @@ public abstract class AEntityF_Multipart<JSONDefinition extends AJSONPartProvide
                 try {
                     IWrapperNBT partData = data.getData("part_" + i);
                     if (partData != null) {
-                        addPartFromStack(PackParser.getItem(partData.getString("packID"), partData.getString("systemName"), partData.getString("subName")).getNewStack(partData), placingPlayer, i, false);
+                        addPartFromStack(PackParser.getItem(partData.getString("packID"), partData.getString("systemName"), partData.getString("subName")).getNewStack(partData), placingPlayer, i, false, false);
                     }
                 } catch (Exception e) {
                     InterfaceManager.coreInterface.logError("Could not load part from NBT.  Did you un-install a pack?");
@@ -728,7 +728,7 @@ public abstract class AEntityF_Multipart<JSONDefinition extends AJSONPartProvide
      * and a packet is sent to all clients to inform them of this change.
      * This method returns the part if it was added, null if it wasn't.
      */
-    public APart addPartFromStack(IWrapperItemStack stack, IWrapperPlayer playerAdding, int slotIndex, boolean bypassSlotChecks) {
+    public APart addPartFromStack(IWrapperItemStack stack, IWrapperPlayer playerAdding, int slotIndex, boolean bypassSlotChecks, boolean sentPacketToClients) {
         JSONPartDefinition newPartDef = definition.parts.get(slotIndex);
         AItemPart partItem = (AItemPart) stack.getItem();
         if (partsInSlots.get(slotIndex) == null && (bypassSlotChecks || partItem.isPartValidForPackDef(newPartDef, subDefinition, !newPartDef.bypassSlotMinMax))) {
@@ -736,7 +736,7 @@ public abstract class AEntityF_Multipart<JSONDefinition extends AJSONPartProvide
             IWrapperNBT partData = stack.getData();
             partItem.populateDefaultData(partData);
             APart partToAdd = partItem.createPart(this, playerAdding, newPartDef, partData);
-            addPart(partToAdd, bypassSlotChecks);
+            addPart(partToAdd, sentPacketToClients);
             partToAdd.addPartsPostConstruction(playerAdding, partData);
             return partToAdd;
         } else {
@@ -749,7 +749,7 @@ public abstract class AEntityF_Multipart<JSONDefinition extends AJSONPartProvide
      * and lists or maps that may have changed from adding the part.  Sending a packet here
      * will create the part on clients, which you will always want to do unless you are transferring a part.
      */
-    public void addPart(APart part, boolean sendPacket) {
+    public void addPart(APart part, boolean sentPacketToClients) {
         parts.add(part);
         if (!part.isFake()) {
             partsInSlots.set(part.placementSlot, part);
@@ -758,7 +758,7 @@ public abstract class AEntityF_Multipart<JSONDefinition extends AJSONPartProvide
             recalculatePartSlots();
 
             //If we are on the server, and need to notify clients, do so.
-            if (sendPacket && !world.isClient()) {
+            if (sentPacketToClients && !world.isClient()) {
                 InterfaceManager.packetInterface.sendToAllClients(new PacketPartChange_Add(this, part));
             }
         }
@@ -868,7 +868,7 @@ public abstract class AEntityF_Multipart<JSONDefinition extends AJSONPartProvide
 	            String partPackID = partName.substring(0, partName.indexOf(':'));
 	            String partSystemName = partName.substring(partName.indexOf(':') + 1);
 	            try {
-                    APart addedPart = addPartFromStack(PackParser.getItem(partPackID, partSystemName).getNewStack(null), playerAdding, partSlot, false);
+                    APart addedPart = addPartFromStack(PackParser.getItem(partPackID, partSystemName).getNewStack(null), playerAdding, partSlot, false, false);
 	                if (addedPart != null) {
 	                    //Set the default tone for the part, if it requests one and we can provide one.
 	                    addedPart.updateTone(false);

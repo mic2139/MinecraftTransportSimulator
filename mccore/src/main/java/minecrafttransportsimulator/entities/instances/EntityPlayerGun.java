@@ -133,7 +133,7 @@ public class EntityPlayerGun extends AEntityF_Multipart<JSONDummyPartProvider> {
                 if (activeGun == null && heldGun != null) {
                     if (heldGun.definition.gun.handHeld) {
                         gunStack = player.getHeldStack();
-                        addPartFromStack(gunStack, player, 0, true);
+                        addPartFromStack(gunStack, player, 0, false, true);
                         hotbarSelected = player.getHotbarIndex();
                     }
                 }

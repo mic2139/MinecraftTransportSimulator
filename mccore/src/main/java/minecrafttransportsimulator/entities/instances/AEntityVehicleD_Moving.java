@@ -796,6 +796,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
                 //Note that this logic is not applied on trailers, as they use special checks with only rotations for movement.
                 world.beginProfiling("GroundBoostCheck", false);
                 groundMotion.y = groundDeviceCollective.getMaxCollisionDepth() / speedFactor;
+                System.out.println(groundDeviceCollective.isResting());
                 if (groundMotion.y > 0) {
                     world.beginProfiling("GroundBoostApply", false);
                     //Make sure boost doesn't exceed the config value.
@@ -987,6 +988,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
      * be done on it as states may be un-defined.
      */
     private boolean correctCollidingMovement() {
+        boolean canBreakBlocks = ticksExisted > 500 && groundDeviceCollective.hasAnyDevices();
         double hardnessHitThisTick = 0;
         Point3D collisionMotion = motion.copy().scale(speedFactor);
         for (BoundingBox box : allBlockCollisionBoxes) {
@@ -1006,7 +1008,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
                             }
                             //Slow down for broken blocks.
                             motion.scale(Math.max(1.0F - blockHardness * 0.5F / ((1000F + currentMass) / 1000F), 0.0F));
-                            if (ticksExisted > 500) {
+                            if (canBreakBlocks) {
                                 if (!world.isClient()) {
                                     world.destroyBlock(blockPosition, true);
                                     if (box.groupDef != null && blockHardness > 0) {
@@ -1022,7 +1024,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
 
                 //If we hit too many blocks.  Either remove part this is a box on, or destroy us.
                 if (ConfigSystem.settings.general.vehicleDestruction.value && hardnessHitThisTick > currentMass / (0.75 + velocity) / 250F) {
-                    if (!world.isClient() && ticksExisted > 500) {
+                    if (canBreakBlocks) {
                         APart partHit = getPartWithBox(box);
                         if (partHit != null) {
                             hardnessHitThisTick -= hardnessHitThisBox;

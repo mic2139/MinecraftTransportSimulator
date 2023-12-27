@@ -206,6 +206,13 @@ public class VehicleGroundDeviceCollection {
     }
 
     /**
+     * Returns true if the collective has any ground devices.
+     */
+    public boolean hasAnyDevices() {
+        return frontLeftGDB.isReady || frontRightGDB.isReady || rearLeftGDB.isReady || rearRightGDB.isReady;
+    }
+
+    /**
      * Returns true if the boxes are ready for ground calculations.  In essence, this checks for a front and back box,
      * plus a left or right box if one of those boxes aren't centered.
      */

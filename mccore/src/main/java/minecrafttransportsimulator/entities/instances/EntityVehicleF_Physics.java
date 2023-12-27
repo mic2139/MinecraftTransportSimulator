@@ -529,7 +529,7 @@ public class EntityVehicleF_Physics extends AEntityVehicleE_Powered {
             }
 
             //Finally, get gravity.  Don't let us go down though if we are resting on blocks.
-            gravitationalForce = currentBallastVolume == 0 && !groundDeviceCollective.isResting() ? currentMass * (9.8 / 400) : 0;
+            gravitationalForce = currentMass * (9.8 / 400);
             if (currentWaterBallastFactor != 0 && world.isBlockLiquid(position)) {
                 gravitationalForce -= gravitationalForce * currentWaterBallastFactor;
             }
@@ -547,6 +547,12 @@ public class EntityVehicleF_Physics extends AEntityVehicleE_Powered {
                 totalForce.addScaled(normalizedVelocityVector, -dragForce);
             }
             totalForce.y += -gravitationalForce;
+
+            //If we are resting, don't let us go down.
+            if (totalForce.y < 0 && groundDeviceCollective.isResting()) {
+                totalForce.y = 0;
+            }
+
             motion.addScaled(totalForce, 1 / currentMass);
             if (motion.length() < 0.005) {
                 //Set motion to 0 for small motions to allow other systems to not do work if not moving.

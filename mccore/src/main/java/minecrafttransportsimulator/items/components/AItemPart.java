@@ -56,7 +56,7 @@ public abstract class AItemPart extends AItemSubTyped<JSONPart> {
         EntityPlacedPart entity = new EntityPlacedPart(world, player, placerData);
         entity.addPartsPostConstruction(player, placerData);
         populateDefaultData(data);
-        APart newPart = entity.addPartFromStack(getNewStack(data), player, 0, true);
+        APart newPart = entity.addPartFromStack(getNewStack(data), player, 0, true, false);
 
         entity.position.set(position);
         entity.prevPosition.set(position);
