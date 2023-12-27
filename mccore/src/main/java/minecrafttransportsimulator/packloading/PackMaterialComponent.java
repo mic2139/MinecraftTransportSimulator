@@ -69,7 +69,7 @@ public class PackMaterialComponent {
                 //Flattened item, un-convert.  Need domain:name.
                 String newName = unflattenedNames.get(domain + ":" + name);
                 if (newName != null) {
-                    String[] newNameComponents = unflattenedNames.get(name).split(":");
+                    String[] newNameComponents = newName.split(":");
                     //Returned format is domain:name:meta.
                     name = newNameComponents[1];
                     meta = Integer.parseInt(newNameComponents[2]);
