@@ -262,12 +262,6 @@ public abstract class AWrapperWorld extends EntityManager {
     public abstract <TileEntityType extends ATileEntityBase<JSONDefinition>, JSONDefinition extends AJSONMultiModelProvider> boolean setBlock(ABlockBase block, Point3D position, IWrapperPlayer playerIWrapper, Axis axis);
 
     /**
-     * Returns the tile entity at the passed-in position, or null if it doesn't exist in the world.
-     * Only valid for TEs of type {@link ATileEntityBase} others will return null.
-     */
-    public abstract <TileEntityType extends ATileEntityBase<?>> TileEntityType getTileEntity(Point3D position);
-
-    /**
      * Flags the tile entity at the passed-in position for saving.  This means the TE's
      * NBT data will be saved to disk when the chunk unloads so it will maintain its state.
      */

@@ -29,6 +29,7 @@ public class Point3D {
 
     @Override
     public boolean equals(Object object) {
+        this.hashCode();
         //TODO see if this is needed anymore, or if FPEs aren't a thing.
         if (object instanceof Point3D) {
             Point3D otherPoint = (Point3D) object;
@@ -41,6 +42,14 @@ public class Point3D {
     @Override
     public String toString() {
         return "[X:" + x + ", Y:" + y + ", Z:" + z + "]";
+    }
+
+    /**
+     * Returns the hash code for this point, assuming it's full of integer values.
+     * This is mainly for blocks to allow this point to be pseudo-referenced in hashmaps.
+     */
+    public int blockHashCode() {
+        return ((int) Math.floor(y) + (int) Math.floor(z) * 31) * 31 + (int) Math.floor(x);
     }
 
     /**

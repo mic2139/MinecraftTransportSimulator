@@ -624,7 +624,7 @@ public abstract class AEntityD_Definable<JSONDefinition extends AJSONMultiModelP
                 //First check if we are in the right view to play.
                 AEntityB_Existing entityRiding = InterfaceManager.clientInterface.getClientPlayer().getEntityRiding();
                 AEntityF_Multipart<?> multipartTopLevel = entityRiding instanceof APart ? ((APart) entityRiding).masterEntity : (entityRiding instanceof AEntityF_Multipart ? (AEntityF_Multipart<?>) entityRiding : null);
-                boolean playerRidingThisEntity = multipartTopLevel != null && (multipartTopLevel.equals(this) || multipartTopLevel.allParts.contains(this));
+                boolean playerRidingThisEntity = multipartTopLevel != null && (multipartTopLevel == this || multipartTopLevel.allParts.contains(this));
                 boolean hasOpenTop = multipartTopLevel instanceof EntityVehicleF_Physics && ((EntityVehicleF_Physics) multipartTopLevel).definition.motorized.hasOpenTop;
                 boolean shouldSoundStartPlaying = hasOpenTop ? true : (playerRidingThisEntity && InterfaceManager.clientInterface.inFirstPerson() && !CameraSystem.runningCustomCameras) ? !soundDef.isExterior : !soundDef.isInterior;
                 boolean anyClockMovedThisUpdate = false;
@@ -635,7 +635,7 @@ public abstract class AEntityD_Definable<JSONDefinition extends AJSONMultiModelP
                 if (shouldSoundStartPlaying) {
                     distance = soundPos.distanceTo(InterfaceManager.clientInterface.getClientPlayer().getPosition());
                     if (soundDef.maxDistance != soundDef.minDistance) {
-                        shouldSoundStartPlaying = distance < soundDef.maxDistance && distance > soundDef.minDistance;
+                        shouldSoundStartPlaying = distance <= soundDef.maxDistance && distance >= soundDef.minDistance;
                     } else {
                         shouldSoundStartPlaying = distance < SoundInstance.DEFAULT_MAX_DISTANCE;
                     }

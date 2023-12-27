@@ -59,6 +59,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
     public double groundVelocity;
     public double weightTransfer = 0;
     public final RotationMatrix rotation = new RotationMatrix();
+    private boolean checkedSpawn;
     private final IWrapperPlayer placingPlayer;
 
     //Properties
@@ -122,6 +123,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
         this.clientDeltaP = serverDeltaP;
         this.groundDeviceCollective = new VehicleGroundDeviceCollection((EntityVehicleF_Physics) this);
         this.placingPlayer = placingPlayer;
+        this.checkedSpawn = data.getBoolean("checkedSpawn");
     }
 
     @Override
@@ -129,7 +131,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
         super.update(updateAction);
         world.beginProfiling("VehicleD_Level", true);
         //If we were placed down, and this is our first tick, check our collision boxes to make sure we are't in the ground.
-        if (ticksExisted == 1 && placingPlayer != null && !world.isClient()) {
+        if (ticksExisted == 1 && !checkedSpawn) {
             //Get how far above the ground the vehicle needs to be, and move it to that position.
             //First boost Y based on collision boxes.
             double furthestDownPoint = 0;
@@ -157,19 +159,29 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
             for (BoundingBox coreBox : allBlockCollisionBoxes) {
                 coreBox.updateToEntity(this, null);
                 if (coreBox.updateCollisions(world, new Point3D(0D, -furthestDownPoint, 0D), CollisionMovementType.ZERO)) {
-                    //New vehicle shouldn't have been spawned.  Bail out.
-                    placingPlayer.sendPacket(new PacketPlayerChatMessage(placingPlayer, JSONConfigLanguage.INTERACT_VEHICLE_NOSPACE));
-                    //Need to add stack back as it will have been removed here.
-                    if (!placingPlayer.isCreative()) {
-                        placingPlayer.setHeldStack(getStack());
+                    //New vehicle shouldn't have been spawned.  Bail out.  Only test on server.
+                    if (!world.isClient()) {
+                        if (placingPlayer != null) {
+                            placingPlayer.sendPacket(new PacketPlayerChatMessage(placingPlayer, JSONConfigLanguage.INTERACT_VEHICLE_NOSPACE));
+                            //Need to add stack back as it will have been removed here.
+                            if (!placingPlayer.isCreative()) {
+                                placingPlayer.setHeldStack(getStack());
+                            }
+                        }
+                        remove();
+                        world.endProfiling();
+                        return;
                     }
-                    remove();
-                    world.endProfiling();
-                    return;
                 }
             }
+
             //Flag server deltas for motion applied since we changed deltas here for testing.
-            addToServerDeltas(null, null, 0);
+            if (!world.isClient()) {
+                addToServerDeltas(null, null, 0);
+            } else {
+                clientDeltaM.add(motionApplied);
+            }
+            checkedSpawn = true;
         }
 
         if (updateAction == EntityUpdateAction.ALL) {
@@ -1010,7 +1022,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
 
                 //If we hit too many blocks.  Either remove part this is a box on, or destroy us.
                 if (ConfigSystem.settings.general.vehicleDestruction.value && hardnessHitThisTick > currentMass / (0.75 + velocity) / 250F) {
-                    if (!world.isClient()) {
+                    if (!world.isClient() && ticksExisted > 500) {
                         APart partHit = getPartWithBox(box);
                         if (partHit != null) {
                             hardnessHitThisTick -= hardnessHitThisBox;
@@ -1100,6 +1112,7 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
         data.setPoint3d("serverDeltaM", serverDeltaM);
         data.setPoint3d("serverDeltaR", serverDeltaR);
         data.setDouble("serverDeltaP", serverDeltaP);
+        data.setBoolean("checkedSpawn", checkedSpawn);
         return data;
     }
 }

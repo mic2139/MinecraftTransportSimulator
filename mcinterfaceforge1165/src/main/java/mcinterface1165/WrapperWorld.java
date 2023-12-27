@@ -663,13 +663,6 @@ public class WrapperWorld extends AWrapperWorld {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <TileEntityType extends ATileEntityBase<?>> TileEntityType getTileEntity(Point3D position) {
-        TileEntity tile = world.getBlockEntity(new BlockPos(position.x, position.y, position.z));
-        return tile instanceof BuilderTileEntity ? (TileEntityType) ((BuilderTileEntity) tile).tileEntity : null;
-    }
-
-    @Override
     public void markTileEntityChanged(Point3D position) {
         world.getBlockEntity(new BlockPos(position.x, position.y, position.z)).setChanged();
     }

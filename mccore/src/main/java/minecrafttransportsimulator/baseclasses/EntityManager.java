@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import minecrafttransportsimulator.blocks.tileentities.components.ATileEntityBase;
 import minecrafttransportsimulator.entities.components.AEntityA_Base;
 import minecrafttransportsimulator.entities.components.AEntityA_Base.EntityUpdateAction;
 import minecrafttransportsimulator.entities.components.AEntityA_Base.EntityUpdateType;
@@ -49,6 +50,7 @@ public abstract class EntityManager {
     private final ConcurrentHashMap<UUID, AEntityA_Base> trackedEntityMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, PartGun> gunMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, Map<Integer, EntityBullet>> bulletMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, ATileEntityBase<?>> tileEntityMap = new ConcurrentHashMap<>();
     private final Map<UUID, EntityPlayerGun> playerServerGuns = new HashMap<>();
     private static int packWarningTicks;
 
@@ -176,14 +178,18 @@ public abstract class EntityManager {
             if (entity instanceof AEntityE_Interactable && ((AEntityE_Interactable<?>) entity).canCollide()) {
                 collidableEntities.add((AEntityE_Interactable<?>) entity);
             }
-        }
-        if (entity instanceof PartGun) {
-            gunMap.put(entity.uniqueUUID, (PartGun) entity);
-            bulletMap.put(entity.uniqueUUID, new HashMap<>());
-        }
-        if (entity instanceof EntityBullet) {
-            EntityBullet bullet = (EntityBullet) entity;
-            bulletMap.get(bullet.gun.uniqueUUID).put(bullet.bulletNumber, bullet);
+            if (entity instanceof PartGun) {
+                gunMap.put(entity.uniqueUUID, (PartGun) entity);
+                bulletMap.put(entity.uniqueUUID, new HashMap<>());
+            }
+            if (entity instanceof EntityBullet) {
+                EntityBullet bullet = (EntityBullet) entity;
+                bulletMap.get(bullet.gun.uniqueUUID).put(bullet.bulletNumber, bullet);
+            }
+            if (entity instanceof ATileEntityBase) {
+                ATileEntityBase<?> tile = (ATileEntityBase<?>) entity;
+                tileEntityMap.put(tile.position.blockHashCode(), tile);
+            }
         }
 
         @SuppressWarnings("unchecked")
@@ -248,6 +254,9 @@ public abstract class EntityManager {
             if (entity instanceof EntityPlayerGun && !entity.world.isClient()) {
                 playerServerGuns.remove(((EntityPlayerGun) entity).playerID);
             }
+            if (entity instanceof ATileEntityBase) {
+                tileEntityMap.remove(((ATileEntityBase<?>) entity).position.blockHashCode());
+            }
         }
         entitiesByClass.get(entity.getClass()).remove(entity);
         if (entity.shouldSync()) {
@@ -279,6 +288,15 @@ public abstract class EntityManager {
      */
     public EntityBullet getBullet(UUID gunID, int bulletNumber) {
         return bulletMap.get(gunID).get(bulletNumber);
+    }
+
+    /**
+     * Gets the TileEntity at the requested position, or null if none are there.
+     * Note that this method does NOT accept a point with decimals; use only whole integer values.
+     */
+    @SuppressWarnings("unchecked")
+    public <TileEntityType extends ATileEntityBase<?>> TileEntityType getTileEntity(Point3D position) {
+        return (TileEntityType) tileEntityMap.get(position.blockHashCode());
     }
 
     /**

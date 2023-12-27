@@ -65,23 +65,32 @@ public class BuilderTileEntity extends TileEntity implements ITickableTileEntity
     @Override
     public void tick() {
         //World and pos might be null on first few scans.
-        if (level != null && worldPosition != null) {
+        if (tileEntity == null && level != null && worldPosition != null && level.isLoaded(worldPosition)) {
             //If we are on the server, and need to make our TE, do it now.
             //Hold off on loading until blocks load: this can take longer than 1 update if the server/client is laggy.
-            if (!level.isClientSide && !loadedFromSavedNBT && lastLoadedNBT != null && level.isLoaded(worldPosition)) {
-                try {
-                    //Get the block that makes this TE and restore it from saved state.
-                    WrapperWorld worldWrapper = WrapperWorld.getWrapperFor(level);
-                    Point3D position = new Point3D(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ());
-                    ABlockBaseTileEntity block = (ABlockBaseTileEntity) worldWrapper.getBlock(position);
-                    setTileEntity(block.createTileEntity(worldWrapper, position, null, new WrapperNBT(lastLoadedNBT)));
-                    tileEntity.world.addEntity(tileEntity);
-                    loadedFromSavedNBT = true;
-                    lastLoadedNBT = null;
-                } catch (Exception e) {
-                    InterfaceManager.coreInterface.logError("Failed to load tile entity on builder from saved NBT.  Did a pack change?");
-                    InterfaceManager.coreInterface.logError(e.getMessage());
-                    level.removeBlock(worldPosition, false);
+            if (!level.isClientSide) {
+                if (!loadedFromSavedNBT && lastLoadedNBT != null) {
+                    try {
+                        //Get the block that makes this TE and restore it from saved state.
+                        WrapperWorld worldWrapper = WrapperWorld.getWrapperFor(level);
+                        Point3D position = new Point3D(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ());
+                        ABlockBaseTileEntity block = (ABlockBaseTileEntity) worldWrapper.getBlock(position);
+                        setTileEntity(block.createTileEntity(worldWrapper, position, null, new WrapperNBT(lastLoadedNBT)));
+                        tileEntity.world.addEntity(tileEntity);
+                        loadedFromSavedNBT = true;
+                        lastLoadedNBT = null;
+                    } catch (Exception e) {
+                        InterfaceManager.coreInterface.logError("Failed to load tile entity on builder from saved NBT.  Did a pack change?");
+                        InterfaceManager.coreInterface.logError(e.getMessage());
+                        level.removeBlock(worldPosition, false);
+                    }
+                }
+            } else {
+                //Try every 1/2 second to get the tile data from the main game register.  We'll have it when the internal packets arrive.
+                WrapperWorld worldWrapper = WrapperWorld.getWrapperFor(level);
+                tileEntity = worldWrapper.getTileEntity(new Point3D(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ()));
+                if (tileEntity != null) {
+                    setTileEntity(tileEntity);
                 }
             }
         }

@@ -11,7 +11,6 @@ import minecrafttransportsimulator.blocks.instances.BlockFuelPump;
 import minecrafttransportsimulator.blocks.instances.BlockItemLoader;
 import minecrafttransportsimulator.blocks.instances.BlockRadio;
 import minecrafttransportsimulator.blocks.instances.BlockSignalController;
-import minecrafttransportsimulator.blocks.tileentities.instances.TileEntityChest;
 import minecrafttransportsimulator.blocks.tileentities.instances.TileEntityDecor;
 import minecrafttransportsimulator.items.components.AItemSubTyped;
 import minecrafttransportsimulator.items.components.IItemBlock;

@@ -53,24 +53,30 @@ public class BuilderTileEntity<TileEntityType extends ATileEntityBase<?>> extend
     @Override
     public void update() {
         //World and pos might be null on first few scans.
-        if (world != null && pos != null) {
+        if (world != null && pos != null && world.isBlockLoaded(pos)) {
             //If we are on the server, and need to make our TE, do it now.
             //Hold off on loading until blocks load: this can take longer than 1 update if the server/client is laggy.
-            if (!world.isRemote && !loadedFromSavedNBT && lastLoadedNBT != null && world.isBlockLoaded(pos)) {
-                try {
-                    //Get the block that makes this TE and restore it from saved state.
-                    WrapperWorld worldWrapper = WrapperWorld.getWrapperFor(world);
-                    Point3D position = new Point3D(pos.getX(), pos.getY(), pos.getZ());
-                    ABlockBaseTileEntity block = (ABlockBaseTileEntity) worldWrapper.getBlock(position);
-                    tileEntity = (TileEntityType) block.createTileEntity(worldWrapper, position, null, new WrapperNBT(lastLoadedNBT));
-                    tileEntity.world.addEntity(tileEntity);
-                    loadedFromSavedNBT = true;
-                    lastLoadedNBT = null;
-                } catch (Exception e) {
-                    InterfaceManager.coreInterface.logError("Failed to load tile entity on builder from saved NBT.  Did a pack change?");
-                    InterfaceManager.coreInterface.logError(e.getMessage());
-                    world.setBlockToAir(pos);
+            if (!world.isRemote) {
+                if (!loadedFromSavedNBT && lastLoadedNBT != null) {
+                    try {
+                        //Get the block that makes this TE and restore it from saved state.
+                        WrapperWorld worldWrapper = WrapperWorld.getWrapperFor(world);
+                        Point3D position = new Point3D(pos.getX(), pos.getY(), pos.getZ());
+                        ABlockBaseTileEntity block = (ABlockBaseTileEntity) worldWrapper.getBlock(position);
+                        tileEntity = (TileEntityType) block.createTileEntity(worldWrapper, position, null, new WrapperNBT(lastLoadedNBT));
+                        tileEntity.world.addEntity(tileEntity);
+                        loadedFromSavedNBT = true;
+                        lastLoadedNBT = null;
+                    } catch (Exception e) {
+                        InterfaceManager.coreInterface.logError("Failed to load tile entity on builder from saved NBT.  Did a pack change?");
+                        InterfaceManager.coreInterface.logError(e.getMessage());
+                        world.setBlockToAir(pos);
+                    }
                 }
+            } else {
+                //Try every 1/2 second to get the tile data from the main game register.  We'll have it when the internal packets arrive.
+                WrapperWorld worldWrapper = WrapperWorld.getWrapperFor(world);
+                tileEntity = worldWrapper.getTileEntity(new Point3D(pos.getX(), pos.getY(), pos.getZ()));
             }
         }
     }
