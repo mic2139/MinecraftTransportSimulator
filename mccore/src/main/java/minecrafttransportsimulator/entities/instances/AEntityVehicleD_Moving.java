@@ -796,7 +796,6 @@ abstract class AEntityVehicleD_Moving extends AEntityVehicleC_Colliding {
                 //Note that this logic is not applied on trailers, as they use special checks with only rotations for movement.
                 world.beginProfiling("GroundBoostCheck", false);
                 groundMotion.y = groundDeviceCollective.getMaxCollisionDepth() / speedFactor;
-                System.out.println(groundDeviceCollective.isResting());
                 if (groundMotion.y > 0) {
                     world.beginProfiling("GroundBoostApply", false);
                     //Make sure boost doesn't exceed the config value.
