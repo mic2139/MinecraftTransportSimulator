@@ -42,7 +42,6 @@ public class InterfaceInput implements IInterfaceInput {
     private static boolean runningJoystickThread = false;
     private static boolean joystickEnabled = false;
     private static boolean joystickBlocked = false;
-    private static boolean joystickInhibited = false;
     private static final Map<String, Integer> joystickNameCounters = new HashMap<>();
 
     //Normal mode joystick variables.
@@ -190,7 +189,7 @@ public class InterfaceInput implements IInterfaceInput {
 
     @Override
     public boolean isJoystickPresent(String joystickName) {
-        return !joystickInhibited && joystickMap.containsKey(joystickName);
+        return joystickMap.containsKey(joystickName);
     }
 
     @Override
@@ -258,11 +257,6 @@ public class InterfaceInput implements IInterfaceInput {
         } else {
             return false;
         }
-    }
-
-    @Override
-    public void inhibitJoysticks(boolean inhibited) {
-        joystickInhibited = inhibited;
     }
 
     @Override

@@ -2,6 +2,7 @@ package mcinterface1182;
 
 import minecrafttransportsimulator.blocks.tileentities.components.ATileEntityBase;
 import minecrafttransportsimulator.blocks.tileentities.components.ITileEntityEnergyCharger;
+import minecrafttransportsimulator.systems.ConfigSystem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -40,13 +41,15 @@ public class BuilderTileEntityEnergyCharger extends BuilderTileEntity implements
         if (!level.isClientSide && charger != null) {
             //Try and charge the internal TE.
             if (buffer > 0) {
-                int amountToCharge = charger.getChargeAmount();
+                double amountToCharge = charger.getChargeAmount();
                 if (amountToCharge != 0) {
-                    if (amountToCharge > buffer) {
-                        amountToCharge = buffer;
+                    int amountToRemoveFromBuffer = (int) (amountToCharge / ConfigSystem.settings.general.rfToElectricityFactor.value);
+                    if (amountToRemoveFromBuffer > buffer) {
+                        amountToRemoveFromBuffer = buffer;
+                        amountToCharge = amountToRemoveFromBuffer * ConfigSystem.settings.general.rfToElectricityFactor.value;
                     }
                     charger.chargeEnergy(amountToCharge);
-                    buffer -= amountToCharge;
+                    buffer -= amountToRemoveFromBuffer;
                 }
             }
         }

@@ -231,14 +231,8 @@ public class InterfaceClient implements IInterfaceClient {
             AWrapperWorld world = InterfaceManager.clientInterface.getClientWorld();
             if (world != null) {
                 if (event.phase.equals(Phase.START)) {
-                    world.beginProfiling("MTS_ClientVehicleUpdates", true);
-                    world.tickAll(true);
-
-                    //Need to update world brightness since sky darken isn't calculated normally on clients.
-                    ((WrapperWorld) world).world.updateSkyBrightness();
-
-                    //Open pack missing screen if we don't have packs.
                     if (!player.isSpectator()) {
+                        //Handle controls.  This has to happen prior to vehicle updates to ensure click handling is based on current position of the player.
                         ControlSystem.controlGlobal(player);
                         if (((WrapperPlayer) player).player.tickCount % 100 == 0) {
                             if (!InterfaceManager.clientInterface.isGUIOpen() && !PackParser.arePacksPresent()) {
@@ -247,6 +241,11 @@ public class InterfaceClient implements IInterfaceClient {
                             }
                         }
                     }
+
+                    //Need to update world brightness since sky darken isn't calculated normally on clients.
+                    ((WrapperWorld) world).world.updateSkyBrightness();
+
+                    world.tickAll(true);
                     
                     //Complain about Entity Culling mod at 10 second mark.
                     if(ConfigSystem.settings.general.performModCompatFunctions.value && InterfaceManager.coreInterface.isModPresent("entityculling")) {
@@ -295,7 +294,6 @@ public class InterfaceClient implements IInterfaceClient {
                     	}
                     }
                 }
-                world.endProfiling();
             }
         }
     }

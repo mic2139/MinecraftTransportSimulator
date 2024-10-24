@@ -193,7 +193,7 @@ public class InterfaceLoader {
         }
 
         //Init the language system for the created items and blocks.
-        LanguageSystem.init();
+        LanguageSystem.init(isClient);
 
         //Init tile entities.  These will run after blocks, so the tile entity lists will be populated by this time.
         BuilderTileEntity.TE_TYPE = BuilderTileEntity.TILE_ENTITIES.register("builder_base", () -> BlockEntityType.Builder.of(BuilderTileEntity::new, normalBlocks.toArray(new BuilderBlock[0])).build(null));

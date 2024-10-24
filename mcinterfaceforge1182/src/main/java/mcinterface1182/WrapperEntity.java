@@ -19,12 +19,14 @@ import minecrafttransportsimulator.systems.ConfigSystem;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.EntityDamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -166,11 +168,27 @@ public class WrapperEntity implements IWrapperEntity {
 
     @Override
     public double getSeatOffset() {
-        if (entity instanceof Villager) {
-            return -12D / 16D;
-        } else {
-            return 0D;
+        //Vanilla entities (boat/minecart) normally have a 0.14 pixel delta from their base to where the entity sits.
+        //We account for this here.
+        AEntityB_Existing riding = getEntityRiding();
+        if (riding instanceof PartSeat && !((PartSeat) riding).definition.seat.standing) {
+            if (entity instanceof Animal) {
+                //Animals are moved up 0.14 pixels (~2.25), for their sitting positions.  Un-do this.
+                return entity.getMyRidingOffset() - 0.14D;
+            } else if (entity instanceof Villager) {
+                //Villagers get the same offset as players.
+                return (-12D / 16D) * (30D / 32D);
+            } else {
+                ResourceLocation registration = entity.getType().getRegistryName();
+                if (registration != null && registration.getNamespace().equals("customnpcs")) {
+                    //CNPCs seem to be offset by 3, but invert their model scaling for their sitting position.
+                    return -3D / 16D * (32D / 30D);
+                } else {
+                    return entity.getMyRidingOffset();
+                }
+            }
         }
+        return 0;
     }
 
     @Override
@@ -213,7 +231,8 @@ public class WrapperEntity implements IWrapperEntity {
 
     @Override
     public void applyMotion(Point3D motion) {
-        entity.setDeltaMovement(entity.getDeltaMovement().add(motion.x, motion.y, motion.z));
+        entity.push(motion.x, motion.y, motion.z);
+        entity.hurtMarked = true;
     }
 
     @Override

@@ -400,6 +400,11 @@ public class WrapperWorld extends AWrapperWorld {
     }
 
     @Override
+    public String getBlockName(Point3D position) {
+        return world.getBlockState(new BlockPos(position.x, position.y, position.z)).getBlock().getRegistryName().toString();
+    }
+
+    @Override
     public float getBlockHardness(Point3D position) {
         BlockPos pos = new BlockPos(position.x, position.y, position.z);
         float hardness = world.getBlockState(pos).getDestroySpeed(world, pos);
@@ -1019,7 +1024,6 @@ public class WrapperWorld extends AWrapperWorld {
         //Note that the client world never calls this method: to do client ticks we need to use the client interface.
         if (!event.world.isClientSide && event.world.equals(world)) {
             if (event.phase.equals(Phase.START)) {
-                beginProfiling("MTS_ServerVehicleUpdates", true);
                 tickAll(true);
 
                 for (Player mcPlayer : event.world.players()) {

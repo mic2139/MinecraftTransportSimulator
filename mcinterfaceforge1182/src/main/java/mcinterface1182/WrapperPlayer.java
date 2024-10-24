@@ -3,8 +3,6 @@ package mcinterface1182;
 import java.util.HashMap;
 import java.util.Map;
 
-import minecrafttransportsimulator.entities.components.AEntityB_Existing;
-import minecrafttransportsimulator.entities.instances.PartSeat;
 import minecrafttransportsimulator.items.components.AItemBase;
 import minecrafttransportsimulator.items.instances.ItemItem;
 import minecrafttransportsimulator.jsondefs.JSONItem.ItemComponentType;
@@ -64,17 +62,15 @@ public class WrapperPlayer extends WrapperEntity implements IWrapperPlayer {
 
     @Override
     public double getSeatOffset() {
-        AEntityB_Existing riding = getEntityRiding();
-        if (riding != null) {
-            if (riding instanceof PartSeat) {
-                PartSeat seat = (PartSeat) riding;
-                if (!seat.definition.seat.standing) {
-                    //Player legs are 12 pixels.
-                    return -12D / 16D;
-                }
-            }
+        //Vanilla players have a -0.35 offset, which is horridly wrong.
+        //Player legs are 12 pixels, but the player model has a funky scale.
+        //It's supposed to be 32px, but is scaled to 30px, so we need to factor that here.
+        //Only return this offset if super returns a non-zero number, which indicates we're in a sitting seat.
+        if (super.getSeatOffset() != 0) {
+            return (-12D / 16D) * (30D / 32D);
+        } else {
+            return 0;
         }
-        return 0;
     }
 
     @Override

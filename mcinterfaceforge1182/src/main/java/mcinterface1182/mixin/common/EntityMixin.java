@@ -1,15 +1,29 @@
 package mcinterface1182.mixin.common;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.Nullable;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList.Builder;
 
 import mcinterface1182.BuilderEntityExisting;
 import mcinterface1182.BuilderEntityLinkedSeat;
+import mcinterface1182.WrapperWorld;
+import minecrafttransportsimulator.baseclasses.BoundingBox;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 @Mixin(Entity.class)
 public abstract class EntityMixin {
@@ -32,19 +46,33 @@ public abstract class EntityMixin {
     /**
      * Need this to force collision with vehicles.
      */
-    @Inject(method = "collide(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;", at = @At(value = "HEAD"), cancellable = true)
-    private void inject_collide(Vec3 movement, CallbackInfoReturnable<Vec3> ci) {
-        Entity entity = (Entity) ((Object) this);
-        AABB box = entity.getBoundingBox();
-        boolean collidedWithVehicle = false;
-        for (BuilderEntityExisting builder : entity.level.getEntitiesOfClass(BuilderEntityExisting.class, box.expandTowards(movement))) {
-            if (builder.collisionBoxes != null) {
-                movement = builder.collisionBoxes.getCollision(movement, box);
-                collidedWithVehicle = true;
+    @Redirect(method = "collide(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getEntityCollisions(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
+    public List<VoxelShape> redirect_collide(Level accessor, @Nullable Entity pEntity, AABB pCollisionBox) {
+        if (pEntity != null) {
+            List<VoxelShape> otherShapes = null;
+            for (BuilderEntityExisting builder : pEntity.level.getEntitiesOfClass(BuilderEntityExisting.class, pCollisionBox)) {
+                if (builder.collisionBoxes != null) {
+                    if (builder.collisionBoxes.intersects(pCollisionBox)) {
+                        for (BoundingBox box : builder.collisionBoxes.getBoxes()) {
+                            AABB convertedBox = WrapperWorld.convert(box);
+                            if (convertedBox.intersects(pCollisionBox)) {
+                                if (otherShapes == null) {
+                                    otherShapes = new ArrayList<>();
+                                }
+                                otherShapes.add(Shapes.create(convertedBox));
+                            }
+                        }
+                    }
+                }
+            }
+            if (otherShapes != null) {
+                List<VoxelShape> oldImmutableList = accessor.getEntityCollisions(pEntity, pCollisionBox);
+                Builder<VoxelShape> builder = ImmutableList.builderWithExpectedSize(oldImmutableList.size() + otherShapes.size());
+                builder.addAll(oldImmutableList);
+                builder.addAll(otherShapes);
+                return builder.build();
             }
         }
-        if (collidedWithVehicle) {
-            ci.setReturnValue(movement);
-        }
+        return accessor.getEntityCollisions(pEntity, pCollisionBox);
     }
 }

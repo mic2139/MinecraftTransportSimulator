@@ -32,7 +32,7 @@ public class WrapperAABBCollective extends AABB {
         this.collision = collision;
     }
 
-    public Set<BoundingBox> getBoxes() {
+    public synchronized Set<BoundingBox> getBoxes() {
         if (boxes.isEmpty()) {
             (interactable instanceof AEntityF_Multipart ? ((AEntityF_Multipart<?>) interactable).allCollisionBoxes : interactable.collisionBoxes).forEach(box -> {
                 if (collision) {
