@@ -8,7 +8,6 @@
 				"client.HumanoidModelMixin",
 				"client.ListenerMixin",
 				"client.MultiPackResourceManagerMixin",
-				"client.ReloadableResourceManagerMixin",
 				"client.VillagerModelMixin",
 				"client.WorldRendererMixin"
     ],

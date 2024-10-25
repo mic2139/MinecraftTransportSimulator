@@ -41,7 +41,6 @@ public class InterfaceEventsModelLoader {
      */
     public static void init() {
         packPack.domains.addAll(PackParser.getAllPackIDs());
-        System.out.println("CREATING PACKS");
     }
 
     /**

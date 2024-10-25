@@ -12,6 +12,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import mcinterface1182.InterfaceEventsModelLoader;
+import mcinterface1182.InterfaceSound;
+import minecrafttransportsimulator.entities.components.AEntityD_Definable;
+import minecrafttransportsimulator.mcinterface.AWrapperWorld;
 import minecrafttransportsimulator.mcinterface.InterfaceManager;
 import minecrafttransportsimulator.packloading.PackParser;
 import net.minecraft.server.packs.PackResources;
@@ -32,12 +35,28 @@ public abstract class MultiPackResourceManagerMixin {
      */
     @Inject(method = "<init>(Lnet/minecraft/server/packs/PackType;Ljava/util/List;)V", at = @At(value = "TAIL"))
     public void inject_init(PackType pType, List<PackResources> pPackResources, CallbackInfo ci) {
-        System.out.println("ADDING " + InterfaceEventsModelLoader.packPack + " " + pType);
         List<PackResources> packs2 = new ArrayList<>();
         packs2.addAll(packs);
         packs2.add(InterfaceEventsModelLoader.packPack);
         packs = packs2;
         namespacedManagers.computeIfAbsent(InterfaceManager.coreModID, k -> new FallbackResourceManager(pType, InterfaceManager.coreModID)).add(InterfaceEventsModelLoader.packPack);
         PackParser.getAllPackIDs().forEach(packID -> namespacedManagers.computeIfAbsent(packID, k -> new FallbackResourceManager(pType, packID)).add(InterfaceEventsModelLoader.packPack));
+    }
+
+    /**
+     * Kill off any sounds and models.  Their cached indexes will get fouled here if we don't.
+     */
+    @Inject(method = "close", at = @At(value = "TAIL"))
+    public void inject_close(CallbackInfo ci) {
+        //Stop all sounds, since sound slots will have changed.
+        InterfaceSound.stopAllSounds();
+
+        //Clear all model caches, since OpenGL indexes will have changed.
+        AWrapperWorld world = InterfaceManager.clientInterface.getClientWorld();
+        if (world != null) {
+            for (AEntityD_Definable<?> entity : world.getEntitiesExtendingType(AEntityD_Definable.class)) {
+                entity.resetModelsAndAnimations();
+            }
+        }
     }
 }
