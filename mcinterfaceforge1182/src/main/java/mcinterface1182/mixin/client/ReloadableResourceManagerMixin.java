@@ -22,6 +22,7 @@ public abstract class ReloadableResourceManagerMixin {
         //FIXME need to figure out the right class to put this in for a F3+T reload.
         //Stop all sounds, since sound slots will have changed.
         InterfaceSound.stopAllSounds();
+        System.out.println("DIE SOUNDS");
 
         //Clear all model caches, since OpenGL indexes will have changed.
         AWrapperWorld world = InterfaceManager.clientInterface.getClientWorld();

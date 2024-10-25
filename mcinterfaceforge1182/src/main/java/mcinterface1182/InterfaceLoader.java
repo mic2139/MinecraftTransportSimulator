@@ -192,6 +192,11 @@ public class InterfaceLoader {
             });
         }
 
+        //If we are on the client, create models.
+        if (isClient) {
+            InterfaceEventsModelLoader.init();
+        }
+
         //Init the language system for the created items and blocks.
         LanguageSystem.init(isClient);
 
